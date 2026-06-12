@@ -1,0 +1,18 @@
+{
+  "name": "camstudy",
+  "version": "2.0.0",
+  "description": "학교 캠스터디 + 질문방 앱 (Supabase 영구저장)",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "@supabase/supabase-js": "^2.43.4"
+  }
+}

@@ -42,10 +42,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
 
 // ---- 학번 검증 / 계정 생성 ----
 function isValidStudentId(id) {
-  return /^\d{5}$/.test(id);
+  // 학생: 5자리 숫자(예 30101) / 선생님: teacher
+  return /^\d{5}$/.test(id) || id === "teacher";
 }
 
-async function ensureUser(studentId) {
+async function ensureUser(studentId, nickname) {
   const { data: existing } = await supabase
     .from("users")
     .select("*")
@@ -56,7 +57,7 @@ async function ensureUser(studentId) {
   const newUser = {
     student_id: studentId,
     password_hash: bcrypt.hashSync(INIT_PASSWORD, 10),
-    nickname: studentId,
+    nickname: nickname || studentId,
     must_change: true,
     created_at: new Date().toISOString(),
   };
@@ -80,7 +81,13 @@ async function seedClassAccounts() {
       console.error("계정 시드 오류:", n, e.message);
     }
   }
-  console.log("우리 반 계정(30101~30128) 준비 완료");
+  // 담임 선생님 계정 (아이디: teacher, 초기비번 1234)
+  try {
+    await ensureUser("teacher", "이용휘 선생님");
+  } catch (e) {
+    console.error("선생님 계정 시드 오류:", e.message);
+  }
+  console.log("우리 반 계정(30101~30128) + 담임(teacher) 준비 완료");
 }
 
 // ---- Express ----

@@ -270,6 +270,36 @@ app.post("/api/questions/:id/answers", auth, async (req, res) => {
   }
 });
 
+// --- 질문 삭제 (본인이 쓴 글만) ---
+app.delete("/api/questions/:id", auth, async (req, res) => {
+  try {
+    const qid = Number(req.params.id);
+    const { data: q } = await supabase
+      .from("questions")
+      .select("*")
+      .eq("id", qid)
+      .maybeSingle();
+    if (!q) return res.status(404).json({ error: "질문을 찾을 수 없습니다." });
+    if (q.student_id !== req.user.studentId) {
+      return res.status(403).json({ error: "본인이 올린 질문만 삭제할 수 있습니다." });
+    }
+    // 사진이 있으면 Storage에서도 삭제
+    if (q.image_path) {
+      const fileName = q.image_path.split("/").pop();
+      if (fileName) {
+        await supabase.storage.from(PHOTO_BUCKET).remove([fileName]);
+      }
+    }
+    // 답변 먼저 삭제 후 질문 삭제 (외래키 cascade가 있어도 안전하게)
+    await supabase.from("answers").delete().eq("question_id", qid);
+    await supabase.from("questions").delete().eq("id", qid);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "삭제에 실패했습니다." });
+  }
+});
+
 // SPA fallback
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));

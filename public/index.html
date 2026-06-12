@@ -8,12 +8,12 @@
 <style>
   /* ===== Apple-style white theme ===== */
   :root{
-    --primary:#0066cc;            /* Action Blue */
+    --primary:#0066cc;
     --primary-focus:#0071e3;
     --canvas:#ffffff;
-    --parchment:#f5f5f7;          /* signature off-white */
+    --parchment:#f5f5f7;
     --pearl:#fafafc;
-    --ink:#1d1d1f;                /* near-black ink */
+    --ink:#1d1d1f;
     --ink-80:#333333;
     --ink-48:#7a7a7a;
     --hairline:#e0e0e0;
@@ -32,7 +32,6 @@
   input,textarea,select{font-family:inherit;font-size:17px;color:var(--ink);outline:none}
   ::placeholder{color:var(--ink-48)}
 
-  /* pill button = primary action */
   .btn-pill{display:inline-flex;align-items:center;justify-content:center;gap:6px;
     background:var(--primary);color:#fff;border-radius:9999px;padding:11px 22px;
     font-size:17px;letter-spacing:-0.374px;transition:transform .12s,opacity .12s}
@@ -40,14 +39,13 @@
   .btn-pill:disabled{opacity:.4;cursor:default}
   .btn-pill.ghost{background:transparent;color:var(--primary);border:1px solid var(--primary)}
   .btn-pill.small{padding:7px 16px;font-size:14px;letter-spacing:-0.224px;white-space:nowrap}
-  /* dark utility (nav) */
   .btn-util{background:var(--ink);color:#fff;border-radius:8px;padding:8px 15px;
     font-size:14px;letter-spacing:-0.224px;transition:transform .12s}
   .btn-util:active{transform:scale(.95)}
   .btn-util.quiet{background:transparent;color:var(--ink)}
   .text-link{color:var(--primary);cursor:pointer}
 
-  /* ===== global nav ===== */
+  /* ===== nav ===== */
   .gnav{position:sticky;top:0;z-index:40;height:48px;background:var(--canvas);
     border-bottom:1px solid var(--divider-soft);display:flex;align-items:center;gap:8px;padding:0 22px}
   .gnav .brand{font-family:var(--font-display);font-weight:600;font-size:21px;letter-spacing:-0.4px;margin-right:auto}
@@ -72,8 +70,7 @@
   .login-card .sub{color:var(--ink-48);font-size:17px;margin:0 0 28px}
   .field{margin-bottom:14px}
   .field label{display:block;font-size:12px;color:var(--ink-48);margin-bottom:6px;letter-spacing:-0.12px}
-  .field input{width:100%;padding:13px 16px;background:var(--canvas);border:1px solid var(--hairline);
-    border-radius:12px}
+  .field input{width:100%;padding:13px 16px;background:var(--canvas);border:1px solid var(--hairline);border-radius:12px}
   .field input:focus{border-color:var(--primary)}
   .login-card .btn-pill{width:100%;margin-top:8px}
   .msg{font-size:14px;text-align:center;min-height:20px;margin-top:14px;letter-spacing:-0.224px}
@@ -279,6 +276,7 @@
       <div class="study-ctrls">
         <button class="ctrl join" id="btnJoin" onclick="toggleStudy()">참여하기</button>
         <button class="ctrl" id="btnCam" onclick="toggleCam()" disabled>카메라 켜기</button>
+        <button class="ctrl" id="btnFlip" onclick="flipCamera()" disabled>카메라 전환</button>
         <button class="ctrl" id="btnPrivacy" onclick="openPrivacy()" disabled>화면 가리기</button>
       </div>
     </div>
@@ -286,7 +284,7 @@
       <div class="video-area">
         <div class="video-tiles" id="videoTiles"></div>
         <div class="study-empty" id="studyEmpty">
-          아직 참여하지 않았어요.<br>“참여하기”를 눌러 친구들과 함께 공부해요.
+          아직 참여하지 않았어요.<br>"참여하기"를 눌러 친구들과 함께 공부해요.
           <small>마이크는 꺼져 있고 채팅으로만 대화해요 · 카메라 없이도 참여 가능</small>
         </div>
       </div>
@@ -419,11 +417,11 @@
 // ===== state =====
 let token=null, me=null, socket=null;
 let localStream=null, inStudy=false, camOn=false;
+let facingMode="user"; // 전면: "user" / 후면: "environment"
 const peers={};
 const RTC_CONFIG={iceServers:[{urls:"stun:stun.l.google.com:19302"}]};
 let allQuestions=[], sortMode="new";
 
-// 권한 헬퍼
 function isStaff(){return me&&(me.role==="owner"||me.role==="admin");}
 function isOwner(){return me&&me.role==="owner";}
 
@@ -503,6 +501,7 @@ function connectSocket(){
   socket.on("chat",m=>addChat(m));
   socket.on("chat-deleted",({id})=>{const el=document.querySelector('[data-cid="'+id+'"]');if(el)el.remove();});
 }
+
 function toggleStudy(){inStudy?leaveStudy():joinStudy();}
 function joinStudy(){
   inStudy=true;
@@ -518,13 +517,17 @@ function leaveStudy(){
   $("videoTiles").innerHTML="";
   $("btnJoin").textContent="참여하기";$("btnJoin").classList.add("join");$("btnJoin").classList.remove("leave");
   $("btnCam").disabled=true;$("btnCam").textContent="카메라 켜기";$("btnCam").classList.remove("on");
+  $("btnFlip").disabled=true;
   $("btnPrivacy").disabled=true;$("chatInput").disabled=true;$("chatSend").disabled=true;refreshEmpty();
 }
+
+// ===== camera =====
 async function toggleCam(){
   if(!camOn){
     try{
-      localStream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+      localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode},audio:false});
       camOn=true;$("btnCam").textContent="카메라 끄기";$("btnCam").classList.add("on");
+      $("btnFlip").disabled=false;
       const v=$("video-me");if(v){v.srcObject=localStream;v.muted=true;}
       updateTileCam("me",true);
       for(const id in peers){localStream.getTracks().forEach(tr=>peers[id].addTrack(tr,localStream));await renegotiate(id);}
@@ -533,10 +536,34 @@ async function toggleCam(){
   }else{
     camOn=false;if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
     $("btnCam").textContent="카메라 켜기";$("btnCam").classList.remove("on");
+    $("btnFlip").disabled=true;
     const v=$("video-me");if(v)v.srcObject=null;updateTileCam("me",false);
     socket.emit("cam-state",{camOn:false});
   }
 }
+
+async function flipCamera(){
+  if(!camOn)return;
+  facingMode=facingMode==="user"?"environment":"user";
+  try{
+    if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
+    localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode},audio:false});
+    const v=$("video-me");if(v){v.srcObject=localStream;v.muted=true;}
+    updateTileCam("me",true);
+    // peer 연결 끊지 않고 트랙만 교체 (replaceTrack)
+    const newTrack=localStream.getVideoTracks()[0];
+    for(const id in peers){
+      const sender=peers[id].getSenders().find(s=>s.track&&s.track.kind==="video");
+      if(sender)await sender.replaceTrack(newTrack);
+    }
+    toast(facingMode==="environment"?"후면 카메라로 전환됐어요":"전면 카메라로 전환됐어요");
+  }catch(e){
+    facingMode=facingMode==="user"?"environment":"user"; // 실패 시 되돌림
+    toast("카메라 전환 실패: "+e.message);
+  }
+}
+
+// ===== WebRTC =====
 function createPeer(id,initiator){
   if(peers[id])return peers[id];
   const pc=new RTCPeerConnection(RTC_CONFIG);peers[id]=pc;
@@ -547,6 +574,8 @@ function createPeer(id,initiator){
 }
 async function renegotiate(id){const pc=peers[id];if(!pc)return;const o=await pc.createOffer();await pc.setLocalDescription(o);socket.emit("webrtc-offer",{to:id,sdp:pc.localDescription});}
 function removePeer(id){if(peers[id]){peers[id].close();delete peers[id];}}
+
+// ===== tiles =====
 function ensureTile(id,name,hasCam,isMe){
   if($("tile-"+id))return;
   const div=document.createElement("div");div.className="tile";div.id="tile-"+id;
@@ -560,6 +589,8 @@ function ensureTile(id,name,hasCam,isMe){
 function updateTileCam(id,on){const n=$("nocam-"+id),v=$("video-"+id);if(!n||!v)return;n.style.display=on?"none":"flex";v.style.display=on?"block":"none";}
 function removeTile(id){const t=$("tile-"+id);if(t)t.remove();}
 function refreshEmpty(){$("studyEmpty").style.display=$("videoTiles").children.length?"none":"block";}
+
+// ===== chat =====
 function sendChat(){const i=$("chatInput"),t=i.value.trim();if(!t)return;socket.emit("chat",{text:t});i.value="";}
 function addChat(m){
   const log=$("chatLog"),d=document.createElement("div");
@@ -631,7 +662,6 @@ async function deleteQuestion(id){
   }catch(e){toast(e.message);}
 }
 
-// ask modal
 function openAskModal(){$("askModal").classList.remove("hidden");}
 function closeAskModal(){$("askModal").classList.add("hidden");
   $("askSubject").value="";$("askBody").value="";$("askImage").value="";$("askPreview").classList.add("hidden");$("askMsg").textContent="";}
@@ -648,7 +678,6 @@ async function submitQuestion(){
   }catch(e){msg.className="msg err";msg.textContent=e.message;}
 }
 
-// detail
 let currentQid=null;
 async function openDetail(id){
   currentQid=id;
@@ -659,8 +688,8 @@ async function openDetail(id){
     else $("detailImg").classList.add("hidden");
     $("detailBody").textContent=question.body||"(내용 없음)";
     $("detailMeta").textContent=`${question.student_id} · ${timeAgo(question.created_at)}`;
-    $("detailDelWrap").innerHTML = (question.student_id===me.studentId||isStaff())
-      ? `<button class="text-link" style="font-size:14px;color:#d70015" onclick="deleteQuestion(${id})">이 질문 삭제</button>` : "";
+    $("detailDelWrap").innerHTML=(question.student_id===me.studentId||isStaff())
+      ?`<button class="text-link" style="font-size:14px;color:#d70015" onclick="deleteQuestion(${id})">이 질문 삭제</button>`:"";
     renderAnswers(answers);
     $("detailModal").classList.remove("hidden");
   }catch(e){toast(e.message);}
@@ -688,13 +717,13 @@ async function submitAnswer(){
   }catch(e){toast(e.message);}
 }
 
-// ===== Admin: 계정 관리 =====
+// ===== Admin =====
 let adminUsers=[];
 async function loadAdminUsers(){
   if(!isStaff())return;
-  $("adminSub").textContent = isOwner()
-    ? "학생 계정을 관리하고, 관리자를 임명·박탈할 수 있습니다."
-    : "학생 계정을 관리합니다. (관리자 임명은 운영자만 가능)";
+  $("adminSub").textContent=isOwner()
+    ?"학생 계정을 관리하고, 관리자를 임명·박탈할 수 있습니다."
+    :"학생 계정을 관리합니다. (관리자 임명은 운영자만 가능)";
   try{adminUsers=await api("/api/admin/users");renderAdminUsers();}
   catch(e){toast(e.message);}
 }
@@ -705,19 +734,16 @@ function renderAdminUsers(){
   let html=`<div class="arow head"><div>학번</div><div>이름 / 권한</div><div style="text-align:right">관리</div></div>`;
   if(!list.length){html+=`<div class="q-empty" style="border:none">계정이 없어요.</div>`;}
   list.forEach(u=>{
-    const isOwnerRow=u.role==="owner", isAdminRow=u.role==="admin";
+    const isOwnerRow=u.role==="owner",isAdminRow=u.role==="admin";
     const badge=isOwnerRow?`<span class="role-badge owner">운영자</span>`:(isAdminRow?`<span class="role-badge admin">관리자</span>`:"");
     let acts="";
-    // 비밀번호 초기화 (운영자 계정 제외)
-    if(!isOwnerRow) acts+=`<button class="aact" onclick="resetPw('${u.student_id}')">비번 초기화</button>`;
-    // 관리자 임명/박탈 (운영자만, 대상이 운영자가 아닐 때)
+    if(!isOwnerRow)acts+=`<button class="aact" onclick="resetPw('${u.student_id}')">비번 초기화</button>`;
     if(isOwner()&&!isOwnerRow){
-      acts+= isAdminRow
-        ? `<button class="aact" onclick="setRole('${u.student_id}','student')">관리자 박탈</button>`
-        : `<button class="aact primary" onclick="setRole('${u.student_id}','admin')">관리자 임명</button>`;
+      acts+=isAdminRow
+        ?`<button class="aact" onclick="setRole('${u.student_id}','student')">관리자 박탈</button>`
+        :`<button class="aact primary" onclick="setRole('${u.student_id}','admin')">관리자 임명</button>`;
     }
-    // 추방 (운영자 계정 제외 / 관리자 계정은 운영자만)
-    if(!isOwnerRow && (!isAdminRow || isOwner()) && u.student_id!==me.studentId){
+    if(!isOwnerRow&&(!isAdminRow||isOwner())&&u.student_id!==me.studentId){
       acts+=`<button class="aact danger" onclick="kickUser('${u.student_id}')">추방</button>`;
     }
     html+=`<div class="arow">
@@ -730,9 +756,8 @@ function renderAdminUsers(){
 }
 async function resetPw(id){
   if(!confirm(`${id} 계정의 비밀번호를 1234로 초기화할까요?`))return;
-  try{await api("/api/admin/users/"+id+"/reset-password",{method:"POST"});
-    toast(`${id} 비밀번호를 1234로 초기화했어요.`);
-  }catch(e){toast(e.message);}
+  try{await api("/api/admin/users/"+id+"/reset-password",{method:"POST"});toast(`${id} 비밀번호를 1234로 초기화했어요.`);}
+  catch(e){toast(e.message);}
 }
 async function setRole(id,role){
   const msg=role==="admin"?`${id} 님을 관리자로 임명할까요?`:`${id} 님의 관리자 권한을 박탈할까요?`;

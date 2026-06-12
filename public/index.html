@@ -118,10 +118,14 @@
   .chat .ch-head{padding:14px 18px;border-bottom:1px solid var(--divider-soft);
     font-family:var(--font-display);font-weight:600;font-size:17px;letter-spacing:-0.3px}
   .chat .ch-log{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
-  .cmsg{font-size:15px;line-height:1.4;letter-spacing:-0.2px}
+  .cmsg{font-size:15px;line-height:1.4;letter-spacing:-0.2px;position:relative}
   .cmsg .who{color:var(--primary);font-weight:600;margin-right:6px}
   .cmsg.me .who{color:var(--ink)}
   .cmsg.system{color:var(--ink-48);font-size:12px;text-align:center;letter-spacing:-0.12px}
+  .cmsg-del{margin-left:6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.06);
+    color:#d70015;font-size:12px;line-height:1;vertical-align:middle;
+    display:inline-flex;align-items:center;justify-content:center;opacity:.55}
+  .cmsg-del:active{opacity:1}
   .chat .ch-input{display:flex;gap:8px;padding:12px;border-top:1px solid var(--divider-soft)}
   .chat .ch-input input{flex:1;padding:10px 14px;border:1px solid var(--hairline);border-radius:9999px}
   .chat .ch-input input:focus{border-color:var(--primary)}
@@ -170,6 +174,30 @@
   .q-card.mine .del{display:flex}
   .q-empty{grid-column:1/-1;text-align:center;color:var(--ink-48);padding:56px 16px;font-size:17px}
 
+  /* ===== admin table ===== */
+  .admin-table{border:1px solid var(--hairline);border-radius:18px;overflow:hidden}
+  .arow{display:grid;grid-template-columns:90px 1fr auto;gap:12px;align-items:center;
+    padding:14px 18px;border-bottom:1px solid var(--divider-soft)}
+  .arow:last-child{border-bottom:none}
+  .arow.head{background:var(--parchment);font-size:12px;color:var(--ink-48);letter-spacing:-0.12px;font-weight:600}
+  .arow .aid{font-weight:600;font-size:15px;letter-spacing:-0.224px}
+  .arow .aname{font-size:14px;color:var(--ink-80);letter-spacing:-0.2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .role-badge{font-size:11px;font-weight:600;letter-spacing:-0.1px;padding:3px 10px;border-radius:9999px}
+  .role-badge.owner{background:#1d1d1f;color:#fff}
+  .role-badge.admin{background:#e6f0ff;color:var(--primary)}
+  .arow .aacts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .aact{font-size:12px;letter-spacing:-0.12px;padding:6px 12px;border-radius:9999px;
+    background:var(--parchment);color:var(--ink-80);white-space:nowrap;transition:transform .12s}
+  .aact:active{transform:scale(.94)}
+  .aact.danger{color:#d70015}
+  .aact.primary{background:var(--primary);color:#fff}
+  .aact:disabled{opacity:.3;cursor:default}
+  @media(max-width:620px){
+    .arow{grid-template-columns:1fr;gap:8px}
+    .arow.head{display:none}
+    .arow .aacts{justify-content:flex-start}
+  }
+
   /* ===== modal ===== */
   .modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.4);
     display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
@@ -195,7 +223,10 @@
     object-fit:contain;margin-bottom:16px}
   .detail-meta{font-size:13px;color:var(--ink-48);margin:6px 0 18px;letter-spacing:-0.12px}
   .ans{background:var(--parchment);border-radius:14px;padding:14px 16px;margin-bottom:10px}
-  .ans .who{font-size:12px;color:var(--primary);font-weight:600;margin-bottom:5px;letter-spacing:-0.12px}
+  .ans .ans-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+  .ans .who{font-size:12px;color:var(--primary);font-weight:600;letter-spacing:-0.12px}
+  .ans .ans-del{flex:none;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.05);
+    color:#d70015;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
   .ans .txt{font-size:15px;line-height:1.45;letter-spacing:-0.224px}
   .ans-input{display:flex;gap:8px;margin-top:14px}
   .ans-input input{flex:1;padding:11px 16px;border:1px solid var(--hairline);border-radius:9999px;letter-spacing:-0.224px}
@@ -234,6 +265,7 @@
     <div class="seg">
       <button id="tab-study" class="active" onclick="showTab('study')">캠스터디</button>
       <button id="tab-qna" onclick="showTab('qna')">질문방</button>
+      <button id="tab-admin" class="hidden" onclick="showTab('admin')">관리자</button>
     </div>
     <span class="who" id="navWho"></span>
     <button class="btn-util quiet" onclick="openPwModal()">비밀번호</button>
@@ -288,6 +320,37 @@
       <button class="btn-pill small" onclick="openAskModal()">질문 올리기</button>
     </div>
     <div class="q-grid" id="qGrid"></div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="view-admin" class="wrap hidden">
+    <div class="qna-head">
+      <h2>관리자</h2>
+      <p id="adminSub">학생 계정을 관리하고 권한을 설정합니다.</p>
+    </div>
+    <div class="qna-bar">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input id="adminSearch" placeholder="학번·이름 검색" oninput="renderAdminUsers()"/>
+      </div>
+      <button class="btn-pill small" onclick="openAddUserModal()">계정 추가</button>
+    </div>
+    <div class="admin-table" id="adminTable"></div>
+  </div>
+</div>
+
+<!-- add user modal -->
+<div id="addUserModal" class="modal hidden">
+  <div class="modal-card">
+    <h2>계정 추가</h2>
+    <div class="mrow"><label>학번 (5자리)</label><input type="text" id="newUserId" placeholder="예) 30129" inputmode="numeric" maxlength="5"/></div>
+    <div class="mrow"><label>이름 (선택)</label><input type="text" id="newUserName" placeholder="비우면 학번으로 표시"/></div>
+    <div id="addUserMsg" class="msg"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAddUserModal()">취소</button>
+      <button class="btn-pill" onclick="submitAddUser()">추가</button>
+    </div>
+    <p style="font-size:12px;color:var(--ink-48);margin:14px 0 0;text-align:center">초기 비밀번호는 1234로 설정됩니다.</p>
   </div>
 </div>
 
@@ -360,6 +423,10 @@ const peers={};
 const RTC_CONFIG={iceServers:[{urls:"stun:stun.l.google.com:19302"}]};
 let allQuestions=[], sortMode="new";
 
+// 권한 헬퍼
+function isStaff(){return me&&(me.role==="owner"||me.role==="admin");}
+function isOwner(){return me&&me.role==="owner";}
+
 const $=id=>document.getElementById(id);
 function api(p,o={}){
   o.headers=Object.assign({"Content-Type":"application/json"},o.headers||{});
@@ -378,9 +445,11 @@ async function doLogin(){
   msg.className="msg";msg.textContent="";
   try{
     const d=await api("/api/login",{method:"POST",body:JSON.stringify({studentId,password})});
-    token=d.token;me={studentId:d.studentId,nickname:d.nickname};
+    token=d.token;me={studentId:d.studentId,nickname:d.nickname,role:d.role||"student"};
     $("screen-login").classList.add("hidden");$("screen-main").classList.remove("hidden");
-    $("navWho").textContent=me.nickname;
+    const roleLabel=me.role==="owner"?" · 운영자":(me.role==="admin"?" · 관리자":"");
+    $("navWho").textContent=me.nickname+roleLabel;
+    $("tab-admin").classList.toggle("hidden", !isStaff());
     connectSocket();loadQuestions();
     if(d.mustChange){toast("초기 비밀번호 사용 중 · 변경을 권장해요");openPwModal();}
   }catch(e){msg.className="msg err";msg.textContent=e.message;}
@@ -407,9 +476,12 @@ async function changePw(){
 function showTab(t){
   $("tab-study").classList.toggle("active",t==="study");
   $("tab-qna").classList.toggle("active",t==="qna");
+  $("tab-admin").classList.toggle("active",t==="admin");
   $("view-study").classList.toggle("hidden",t!=="study");
   $("view-qna").classList.toggle("hidden",t!=="qna");
+  $("view-admin").classList.toggle("hidden",t!=="admin");
   if(t==="qna")loadQuestions();
+  if(t==="admin")loadAdminUsers();
 }
 
 // ===== socket + study =====
@@ -429,6 +501,7 @@ function connectSocket(){
   socket.on("webrtc-answer",async({from,sdp})=>{const pc=peers[from];if(pc)await pc.setRemoteDescription(sdp);});
   socket.on("webrtc-ice",async({from,candidate})=>{const pc=peers[from];if(pc&&candidate)try{await pc.addIceCandidate(candidate);}catch(e){}});
   socket.on("chat",m=>addChat(m));
+  socket.on("chat-deleted",({id})=>{const el=document.querySelector('[data-cid="'+id+'"]');if(el)el.remove();});
 }
 function toggleStudy(){inStudy?leaveStudy():joinStudy();}
 function joinStudy(){
@@ -490,10 +563,17 @@ function refreshEmpty(){$("studyEmpty").style.display=$("videoTiles").children.l
 function sendChat(){const i=$("chatInput"),t=i.value.trim();if(!t)return;socket.emit("chat",{text:t});i.value="";}
 function addChat(m){
   const log=$("chatLog"),d=document.createElement("div");
+  if(m.id)d.setAttribute("data-cid",m.id);
   if(m.system){d.className="cmsg system";d.textContent=m.text;}
-  else{const mine=m.studentId===me.studentId;d.className="cmsg"+(mine?" me":"");d.innerHTML=`<span class="who">${esc(m.nickname)}</span><span>${esc(m.text)}</span>`;}
+  else{
+    const mine=m.studentId===me.studentId;
+    d.className="cmsg"+(mine?" me":"");
+    const delBtn=(isStaff()&&m.id)?`<button class="cmsg-del" onclick="deleteChat('${m.id}')" title="삭제">×</button>`:"";
+    d.innerHTML=`<span class="who">${esc(m.nickname)}</span><span class="ctxt">${esc(m.text)}</span>${delBtn}`;
+  }
   log.appendChild(d);log.scrollTop=log.scrollHeight;
 }
+function deleteChat(id){socket.emit("delete-chat",{id});}
 
 // ===== privacy =====
 let pTimer=null,pStart=0;
@@ -531,7 +611,7 @@ function renderQuestions(){
   }
   list.forEach(q=>{
     const card=document.createElement("div");
-    card.className="q-card"+(q.student_id===me.studentId?" mine":"");
+    card.className="q-card"+((q.student_id===me.studentId||isStaff())?" mine":"");
     card.onclick=()=>openDetail(q.id);
     const thumb=q.image_path?`<img class="thumb" src="${q.image_path}" loading="lazy"/>`:`<div class="thumb noimg">사진 없음</div>`;
     card.innerHTML=`${thumb}
@@ -579,7 +659,7 @@ async function openDetail(id){
     else $("detailImg").classList.add("hidden");
     $("detailBody").textContent=question.body||"(내용 없음)";
     $("detailMeta").textContent=`${question.student_id} · ${timeAgo(question.created_at)}`;
-    $("detailDelWrap").innerHTML = question.student_id===me.studentId
+    $("detailDelWrap").innerHTML = (question.student_id===me.studentId||isStaff())
       ? `<button class="text-link" style="font-size:14px;color:#d70015" onclick="deleteQuestion(${id})">이 질문 삭제</button>` : "";
     renderAnswers(answers);
     $("detailModal").classList.remove("hidden");
@@ -589,8 +669,16 @@ function renderAnswers(answers){
   const wrap=$("answerList");wrap.innerHTML="";
   if(!answers.length){wrap.innerHTML=`<div style="color:var(--ink-48);font-size:14px;padding:6px 0 12px">아직 답변이 없어요. 첫 답변을 달아주세요.</div>`;return;}
   answers.forEach(a=>{const d=document.createElement("div");d.className="ans";
-    d.innerHTML=`<div class="who">${esc(a.student_id)} · ${timeAgo(a.created_at)}</div><div class="txt">${esc(a.body)}</div>`;
+    const canDel=(a.student_id===me.studentId||isStaff());
+    const delBtn=canDel?`<button class="ans-del" onclick="deleteAnswer(${a.id})" title="삭제">×</button>`:"";
+    d.innerHTML=`<div class="ans-top"><div class="who">${esc(a.student_id)} · ${timeAgo(a.created_at)}</div>${delBtn}</div><div class="txt">${esc(a.body)}</div>`;
     wrap.appendChild(d);});
+}
+async function deleteAnswer(id){
+  if(!confirm("이 답변을 삭제할까요?"))return;
+  try{await api("/api/answers/"+id,{method:"DELETE"});
+    const {answers}=await api("/api/questions/"+currentQid);renderAnswers(answers);loadQuestions();
+  }catch(e){toast(e.message);}
 }
 function closeDetail(){$("detailModal").classList.add("hidden");$("answerInput").value="";currentQid=null;}
 async function submitAnswer(){
@@ -598,6 +686,75 @@ async function submitAnswer(){
   try{await api("/api/questions/"+currentQid+"/answers",{method:"POST",body:JSON.stringify({body})});
     $("answerInput").value="";const {answers}=await api("/api/questions/"+currentQid);renderAnswers(answers);loadQuestions();
   }catch(e){toast(e.message);}
+}
+
+// ===== Admin: 계정 관리 =====
+let adminUsers=[];
+async function loadAdminUsers(){
+  if(!isStaff())return;
+  $("adminSub").textContent = isOwner()
+    ? "학생 계정을 관리하고, 관리자를 임명·박탈할 수 있습니다."
+    : "학생 계정을 관리합니다. (관리자 임명은 운영자만 가능)";
+  try{adminUsers=await api("/api/admin/users");renderAdminUsers();}
+  catch(e){toast(e.message);}
+}
+function renderAdminUsers(){
+  const kw=$("adminSearch").value.trim().toLowerCase();
+  const list=adminUsers.filter(u=>!kw||u.student_id.toLowerCase().includes(kw)||(u.nickname||"").toLowerCase().includes(kw));
+  const wrap=$("adminTable");
+  let html=`<div class="arow head"><div>학번</div><div>이름 / 권한</div><div style="text-align:right">관리</div></div>`;
+  if(!list.length){html+=`<div class="q-empty" style="border:none">계정이 없어요.</div>`;}
+  list.forEach(u=>{
+    const isOwnerRow=u.role==="owner", isAdminRow=u.role==="admin";
+    const badge=isOwnerRow?`<span class="role-badge owner">운영자</span>`:(isAdminRow?`<span class="role-badge admin">관리자</span>`:"");
+    let acts="";
+    // 비밀번호 초기화 (운영자 계정 제외)
+    if(!isOwnerRow) acts+=`<button class="aact" onclick="resetPw('${u.student_id}')">비번 초기화</button>`;
+    // 관리자 임명/박탈 (운영자만, 대상이 운영자가 아닐 때)
+    if(isOwner()&&!isOwnerRow){
+      acts+= isAdminRow
+        ? `<button class="aact" onclick="setRole('${u.student_id}','student')">관리자 박탈</button>`
+        : `<button class="aact primary" onclick="setRole('${u.student_id}','admin')">관리자 임명</button>`;
+    }
+    // 추방 (운영자 계정 제외 / 관리자 계정은 운영자만)
+    if(!isOwnerRow && (!isAdminRow || isOwner()) && u.student_id!==me.studentId){
+      acts+=`<button class="aact danger" onclick="kickUser('${u.student_id}')">추방</button>`;
+    }
+    html+=`<div class="arow">
+      <div class="aid">${esc(u.student_id)}</div>
+      <div class="aname">${esc(u.nickname||u.student_id)} ${badge}</div>
+      <div class="aacts">${acts||'<span style="color:var(--ink-48);font-size:12px">—</span>'}</div>
+    </div>`;
+  });
+  wrap.innerHTML=html;
+}
+async function resetPw(id){
+  if(!confirm(`${id} 계정의 비밀번호를 1234로 초기화할까요?`))return;
+  try{await api("/api/admin/users/"+id+"/reset-password",{method:"POST"});
+    toast(`${id} 비밀번호를 1234로 초기화했어요.`);
+  }catch(e){toast(e.message);}
+}
+async function setRole(id,role){
+  const msg=role==="admin"?`${id} 님을 관리자로 임명할까요?`:`${id} 님의 관리자 권한을 박탈할까요?`;
+  if(!confirm(msg))return;
+  try{await api("/api/admin/users/"+id+"/role",{method:"POST",body:JSON.stringify({role})});
+    toast(role==="admin"?"관리자로 임명했어요.":"관리자 권한을 박탈했어요.");loadAdminUsers();
+  }catch(e){toast(e.message);}
+}
+async function kickUser(id){
+  if(!confirm(`${id} 계정을 추방(삭제)할까요? 되돌릴 수 없어요.`))return;
+  try{await api("/api/admin/users/"+id,{method:"DELETE"});toast(`${id} 계정을 추방했어요.`);loadAdminUsers();}
+  catch(e){toast(e.message);}
+}
+function openAddUserModal(){$("addUserModal").classList.remove("hidden");$("addUserMsg").textContent="";}
+function closeAddUserModal(){$("addUserModal").classList.add("hidden");$("newUserId").value="";$("newUserName").value="";}
+async function submitAddUser(){
+  const studentId=$("newUserId").value.trim(),nickname=$("newUserName").value.trim(),msg=$("addUserMsg");
+  msg.className="msg";
+  if(!/^\d{5}$/.test(studentId)){msg.className="msg err";msg.textContent="학번은 5자리 숫자로 입력하세요.";return;}
+  try{await api("/api/admin/users",{method:"POST",body:JSON.stringify({studentId,nickname})});
+    closeAddUserModal();toast(`${studentId} 계정을 추가했어요. (비번 1234)`);loadAdminUsers();
+  }catch(e){msg.className="msg err";msg.textContent=e.message;}
 }
 </script>
 </body>

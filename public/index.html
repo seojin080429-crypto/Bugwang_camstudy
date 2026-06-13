@@ -127,6 +127,24 @@
   .tile-act:active{transform:scale(.9)}
   .tile-act.danger{background:rgba(215,0,21,.75)}
   @media(max-width:640px){.tile-act{width:38px;height:38px}.tile-act svg{width:20px;height:20px}}
+  /* 내 화면에서 가리기 버튼 (좌상단) */
+  .tile-hide{position:absolute;top:8px;left:8px;z-index:2;width:34px;height:34px;border-radius:9999px;
+    background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(4px);opacity:0;transition:opacity .15s,transform .12s}
+  .tile-hide svg{width:18px;height:18px}
+  .tile-hide:active{transform:scale(.9)}
+  .tile:hover .tile-hide{opacity:1}
+  @media(max-width:640px){.tile-hide{opacity:1;width:38px;height:38px}.tile-hide svg{width:20px;height:20px}}
+  /* 가림막 (가린 상태에서만 표시) */
+  .tile-cover{position:absolute;inset:0;z-index:5;background:rgba(20,20,22,.97);
+    display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    color:#cfcfcf;font-size:13px;letter-spacing:-0.1px}
+  .tile-cover svg{width:30px;height:30px;opacity:.7}
+  .tile-cover .cover-undo{margin-top:4px;background:rgba(255,255,255,.14);color:#fff;
+    border-radius:9999px;padding:7px 16px;font-size:13px;letter-spacing:-0.1px}
+  .tile-cover .cover-undo:active{transform:scale(.94)}
+  .tile.hidden-peer .tile-cover{display:flex}
+  .tile.hidden-peer .tile-hide{display:none}  /* 가린 상태에선 가리기 버튼 숨김 (가림막의 다시보기 사용) */
   .study-empty{text-align:center;color:var(--ink-48);padding:48px 16px;font-size:17px;line-height:1.5}
   .study-empty small{display:block;margin-top:8px;font-size:13px;color:var(--ink-48)}
 
@@ -600,6 +618,7 @@ let token=null, me=null, socket=null;
 let localStream=null, inStudy=false, camOn=false;
 let facingMode="user";
 const participants_ui={}; // socketId -> {nickname, camOn}
+const hiddenPeers=new Set(); // 내가 가린 참가자들의 studentId (내 화면에서만)
 const peers={};
 const RTC_CONFIG={iceServers:[{urls:"stun:stun.l.google.com:19302"}]};
 let allQuestions=[], sortMode="new";
@@ -728,14 +747,14 @@ function connectSocket(){
   socket.on("participant-count",n=>{$("studyCount").textContent=n;});
   socket.on("existing-participants",list=>{
     list.forEach(p=>{
-      participants_ui[p.id]={nickname:p.nickname,camOn:p.camOn};
+      participants_ui[p.id]={nickname:p.nickname,camOn:p.camOn,studentId:p.studentId};
       ensureTile(p.id,p.nickname,p.camOn);
       createPeer(p.id,true);
     });
     refreshEmpty();
   });
   socket.on("user-joined",p=>{
-    participants_ui[p.id]={nickname:p.nickname,camOn:p.camOn};
+    participants_ui[p.id]={nickname:p.nickname,camOn:p.camOn,studentId:p.studentId};
     ensureTile(p.id,p.nickname,p.camOn);
     refreshEmpty();
   });
@@ -946,6 +965,8 @@ function ensureTile(id,name,hasCam,isMe){
   const div=document.createElement("div");div.className="tile";div.id="tile-"+id;
   const digits=(name||"").match(/\d+/);
   const ini=digits?digits[0].slice(-2):((name||"?").trim()[0]||"?");
+  // 이 타일의 studentId (가리기 상태 판단용)
+  const sid=isMe?(me&&me.studentId):(participants_ui[id]&&participants_ui[id].studentId);
   // 관리자이고 본인 타일이 아니면 제어 버튼 표시
   const adminBtns=(!isMe && isStaff())
     ? `<div class="tile-admin">
@@ -956,10 +977,40 @@ function ensureTile(id,name,hasCam,isMe){
            <svg viewBox="0 0 24 24" fill="none"><path d="M14 7l-7 7M7 7l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17 4h2a1 1 0 011 1v14a1 1 0 01-1 1h-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
          </button>
        </div>` : "";
+  // 본인 타일이 아니면 누구나 '내 화면에서 가리기' 버튼 사용 가능
+  const hideBtn=(!isMe)
+    ? `<button class="tile-hide" onclick="toggleHidePeer('${id}')" title="내 화면에서 가리기">
+         <svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/></svg>
+       </button>` : "";
   div.innerHTML=`<video id="video-${id}" autoplay playsinline ${isMe?"muted":""}></video>
     <div class="nocam" id="nocam-${id}"><div class="av">${esc(ini)}</div><span>카메라 꺼짐</span></div>
-    <div class="nm">${esc(name)}</div>${adminBtns}`;
+    <div class="nm">${esc(name)}</div>${adminBtns}${hideBtn}
+    <div class="tile-cover" id="cover-${id}">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.6"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>가림</span>
+      <button class="cover-undo" onclick="toggleHidePeer('${id}')">다시 보기</button>
+    </div>`;
   $("videoTiles").appendChild(div);updateTileCam(id,hasCam);
+  // 이미 가린 참가자면 가림막 적용
+  if(sid && hiddenPeers.has(sid)) applyHide(id,true);
+}
+// 특정 참가자를 내 화면에서만 가리기/풀기 (studentId 기준)
+function toggleHidePeer(tileId){
+  const info=participants_ui[tileId];
+  const sid=info&&info.studentId;
+  if(!sid)return;
+  if(hiddenPeers.has(sid)){
+    hiddenPeers.delete(sid);
+    applyHide(tileId,false);
+  }else{
+    hiddenPeers.add(sid);
+    applyHide(tileId,true);
+    toast((info.nickname||"이 학생")+" 님을 내 화면에서 가렸어요.");
+  }
+}
+function applyHide(tileId,on){
+  const tile=$("tile-"+tileId);if(!tile)return;
+  tile.classList.toggle("hidden-peer",on);
 }
 function updateTileCam(id,on){const n=$("nocam-"+id),v=$("video-"+id);if(!n||!v)return;n.style.display=on?"none":"flex";v.style.display=on?"block":"none";}
 function removeTile(id){const t=$("tile-"+id);if(t)t.remove();}

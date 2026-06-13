@@ -502,18 +502,20 @@ function connectSocket(){
   socket.on("chat-deleted",({id})=>{const el=document.querySelector('[data-cid="'+id+'"]');if(el)el.remove();});
 
   // ── 재연결 처리 ──────────────────────────────────────────
-  // 백그라운드 복귀 등으로 소켓이 끊겼다가 다시 연결됐을 때
+  // 소켓이 끊기면 disconnect 기록, 재연결(connect)되면 방 재입장
+  socket.on("disconnect", ()=>{
+    socket._wasInStudy = inStudy;
+  });
   socket.on("connect", ()=>{
-    if(!inStudy) return; // 원래 참여 안 했으면 무시
-    // 기존 peer/tile 모두 정리하고 방 재입장
+    if(!socket._wasInStudy) return; // 원래 참여 안 했거나 첫 연결이면 무시
+    socket._wasInStudy = false;
+    // peer/tile 정리 후 재입장
     Object.keys(peers).forEach(removePeer);
     $("videoTiles").innerHTML="";
-    // 카메라 스트림도 끊겼을 수 있으므로 상태 초기화
     if(localStream){ localStream.getTracks().forEach(t=>t.stop()); localStream=null; }
     camOn=false;
     $("btnCam").textContent="카메라 켜기"; $("btnCam").classList.remove("on");
     $("btnFlip").disabled=true;
-    // 내 타일 다시 추가 후 재입장 emit
     ensureTile("me", me.nickname+" (나)", false, true);
     socket.emit("join-study", {camOn:false});
     refreshEmpty();

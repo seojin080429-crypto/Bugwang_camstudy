@@ -440,7 +440,8 @@
 // ===== state =====
 let token=null, me=null, socket=null;
 let localStream=null, inStudy=false, camOn=false;
-let facingMode="user"; // 전면: "user" / 후면: "environment"
+let facingMode="user";
+const participants_ui={}; // socketId -> {nickname, camOn}
 const peers={};
 const RTC_CONFIG={iceServers:[{urls:"stun:stun.l.google.com:19302"}]};
 let allQuestions=[], sortMode="new";
@@ -510,10 +511,24 @@ function connectSocket(){
   socket=io({auth:{token}});
   socket.on("connect_error",e=>toast("연결 오류: "+e.message));
   socket.on("participant-count",n=>{$("studyCount").textContent=n;});
-  socket.on("existing-participants",list=>{list.forEach(p=>{ensureTile(p.id,p.nickname,p.camOn);createPeer(p.id,true);});refreshEmpty();});
-  socket.on("user-joined",p=>{ensureTile(p.id,p.nickname,p.camOn);refreshEmpty();});
-  socket.on("user-left",({id})=>{removePeer(id);removeTile(id);refreshEmpty();});
-  socket.on("peer-cam-state",({id,camOn})=>updateTileCam(id,camOn));
+  socket.on("existing-participants",list=>{
+    list.forEach(p=>{
+      participants_ui[p.id]={nickname:p.nickname,camOn:p.camOn};
+      ensureTile(p.id,p.nickname,p.camOn);
+      createPeer(p.id,true);
+    });
+    refreshEmpty();
+  });
+  socket.on("user-joined",p=>{
+    participants_ui[p.id]={nickname:p.nickname,camOn:p.camOn};
+    ensureTile(p.id,p.nickname,p.camOn);
+    refreshEmpty();
+  });
+  socket.on("user-left",({id})=>{delete participants_ui[id];removePeer(id);removeTile(id);refreshEmpty();});
+  socket.on("peer-cam-state",({id,camOn})=>{
+    if(participants_ui[id]) participants_ui[id].camOn=camOn;
+    updateTileCam(id,camOn);
+  });
   socket.on("webrtc-offer",async({from,sdp})=>{
     const pc=createPeer(from,false);await pc.setRemoteDescription(sdp);
     const ans=await pc.createAnswer();await pc.setLocalDescription(ans);
@@ -534,6 +549,7 @@ function connectSocket(){
     socket._wasInStudy = false;
     // peer/tile 정리 후 재입장
     Object.keys(peers).forEach(removePeer);
+    Object.keys(participants_ui).forEach(k=>delete participants_ui[k]);
     $("videoTiles").innerHTML="";
     if(localStream){ localStream.getTracks().forEach(t=>t.stop()); localStream=null; }
     camOn=false;
@@ -567,6 +583,7 @@ function joinStudy(){
 function leaveStudy(){
   inStudy=false;camOn=false;socket.emit("leave-study");
   Object.keys(peers).forEach(removePeer);
+  Object.keys(participants_ui).forEach(k=>delete participants_ui[k]);
   if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
   $("videoTiles").innerHTML="";
   $("btnJoin").textContent="참여하기";$("btnJoin").classList.add("join");$("btnJoin").classList.remove("leave");
@@ -623,7 +640,17 @@ function createPeer(id,initiator){
   const pc=new RTCPeerConnection(RTC_CONFIG);peers[id]=pc;
   if(localStream)localStream.getTracks().forEach(tr=>pc.addTrack(tr,localStream));
   pc.onicecandidate=e=>{if(e.candidate)socket.emit("webrtc-ice",{to:id,candidate:e.candidate});};
-  pc.ontrack=e=>{const v=$("video-"+id);if(v){v.srcObject=e.streams[0];updateTileCam(id,true);}};
+  pc.ontrack=e=>{
+    // 타일이 아직 없을 수 있으므로 ensureTile 먼저
+    const p=participants_ui[id];
+    if(!$("tile-"+id)) ensureTile(id, p?p.nickname:id, false, false);
+    const v=$("video-"+id);
+    if(v){
+      v.srcObject=e.streams[0];
+      updateTileCam(id,true);
+      v.play().catch(()=>{});
+    }
+  };
   if(initiator)renegotiate(id);return pc;
 }
 async function renegotiate(id){const pc=peers[id];if(!pc)return;const o=await pc.createOffer();await pc.setLocalDescription(o);socket.emit("webrtc-offer",{to:id,sdp:pc.localDescription});}

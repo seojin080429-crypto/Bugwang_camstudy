@@ -865,7 +865,7 @@ function startJitsi(cfg){
       SHOW_CHROME_EXTENSION_BANNER:false,
       DEFAULT_BACKGROUND:"#f5f5f7",        // 밝은 회색 배경 (우리 테마)
       DISABLE_VIDEO_BACKGROUND:false,
-      TILE_VIEW_MAX_COLUMNS:5,             // 타일 한 줄에 최대 5명
+      TILE_VIEW_MAX_COLUMNS:7,             // 타일 한 줄에 최대 7명 (작게 많이)
       DISABLE_DOMINANT_SPEAKER_INDICATOR:true,
       DEFAULT_REMOTE_DISPLAY_NAME:"학생",
       TOOLBAR_BUTTONS:["camera","tileview","hangup","fullscreen","settings"],
@@ -874,11 +874,30 @@ function startJitsi(cfg){
   };
   jitsiApi=new JitsiMeetExternalAPI(domain, options);
   jitsiApi.addEventListener("readyToClose", ()=>{ leaveStudy(); });
-  // 입장 직후 타일뷰 강제 + 마이크 음소거 재확인
-  jitsiApi.addEventListener("videoConferenceJoined", ()=>{
+  // 타일뷰 강제 함수 (여러 번/딜레이 두고 호출해서 확실히 적용)
+  function forceTileView(){
     try{ jitsiApi.executeCommand("setTileView", true); }catch(e){}
+  }
+  jitsiApi.addEventListener("videoConferenceJoined", ()=>{
+    forceTileView();
+    setTimeout(forceTileView, 800);    // Jitsi 준비 후 재적용
+    setTimeout(forceTileView, 2000);
     try{ jitsiApi.isAudioMuted().then(m=>{ if(!m) jitsiApi.executeCommand("toggleAudio"); }); }catch(e){}
   });
+  // 새 참가자가 들어올 때마다 타일뷰 유지 (한 명이 크게 잡히는 것 방지)
+  jitsiApi.addEventListener("participantJoined", ()=>{ setTimeout(forceTileView, 300); });
+  jitsiApi.addEventListener("participantLeft", ()=>{ setTimeout(forceTileView, 300); });
+
+  // 관리자(moderator)가 Jitsi에서 누군가 추방하면 → 우리 채팅에 알림
+  // (관리자 본인 화면에서만 이벤트가 잡히므로, 관리자가 시스템 공지를 서버로 쏨)
+  if(cfg.moderator){
+    jitsiApi.addEventListener("participantKickedOut", (e)=>{
+      try{
+        const who=(e && e.kicked && e.kicked.name) ? e.kicked.name : "참가자";
+        socket.emit("system-notice", { text: `${who} 님이 관리자에 의해 캠스터디에서 내보내졌습니다.` });
+      }catch(err){}
+    });
+  }
 }
 
 function leaveStudy(){

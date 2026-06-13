@@ -231,7 +231,13 @@
   .ans .txt{font-size:15px;line-height:1.45;letter-spacing:-0.224px}
   .ans-input{display:flex;gap:8px;margin-top:14px}
   .ans-input input{flex:1;padding:11px 16px;border:1px solid var(--hairline);border-radius:9999px;letter-spacing:-0.224px}
+  .ans-input input[type=text],.ans-input input#answerInput{flex:1}
   .ans-input input:focus{border-color:var(--primary)}
+  .ans-photo-btn{flex:none;width:40px;height:40px;border-radius:9999px;background:var(--parchment);
+    color:var(--ink-80);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .12s}
+  .ans-photo-btn:active{transform:scale(.92)}
+  .ans-photo-btn.has-img{background:var(--primary);color:#fff}
+  .ans .ans-img{width:100%;max-height:240px;object-fit:contain;border-radius:10px;margin-top:8px;background:var(--canvas)}
 
   .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
     background:var(--ink);color:#fff;padding:12px 22px;border-radius:9999px;
@@ -437,7 +443,12 @@
     <div id="detailDelWrap" style="margin-bottom:18px"></div>
     <h3 style="font-family:var(--font-display);font-size:17px;font-weight:600;letter-spacing:-0.3px;margin:0 0 12px">답변</h3>
     <div id="answerList"></div>
+    <img id="ansPreview" class="preview-img hidden" style="margin-bottom:10px"/>
     <div class="ans-input">
+      <label for="ansImage" class="ans-photo-btn" title="사진 첨부">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="12" rx="2" stroke="currentColor" stroke-width="1.4"/><circle cx="7" cy="8.5" r="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M3 14l4-3.5 3 2.5 3-3 4 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </label>
+      <input id="ansImage" type="file" accept="image/*" class="hidden" onchange="previewAns(this)"/>
       <input id="answerInput" placeholder="답변 달기" onkeydown="if(event.key==='Enter')submitAnswer()"/>
       <button class="btn-pill small" onclick="submitAnswer()">등록</button>
     </div>
@@ -809,6 +820,7 @@ async function submitQuestion(){
 let currentQid=null;
 async function openDetail(id){
   currentQid=id;
+  resetAnsInput();
   try{
     const {question,answers}=await api("/api/questions/"+id);
     $("detailSubject").textContent=question.subject;
@@ -828,7 +840,9 @@ function renderAnswers(answers){
   answers.forEach(a=>{const d=document.createElement("div");d.className="ans";
     const canDel=(a.student_id===me.studentId||isStaff());
     const delBtn=canDel?`<button class="ans-del" onclick="deleteAnswer(${a.id})" title="삭제">×</button>`:"";
-    d.innerHTML=`<div class="ans-top"><div class="who">${esc(a.student_id)} · ${timeAgo(a.created_at)}</div>${delBtn}</div><div class="txt">${esc(a.body)}</div>`;
+    const imgHtml=a.image_path?`<img class="ans-img" src="${a.image_path}" loading="lazy"/>`:"";
+    const txtHtml=a.body?`<div class="txt">${esc(a.body)}</div>`:"";
+    d.innerHTML=`<div class="ans-top"><div class="who">${esc(a.student_id)} · ${timeAgo(a.created_at)}</div>${delBtn}</div>${txtHtml}${imgHtml}`;
     wrap.appendChild(d);});
 }
 async function deleteAnswer(id){
@@ -837,12 +851,35 @@ async function deleteAnswer(id){
     const {answers}=await api("/api/questions/"+currentQid);renderAnswers(answers);loadQuestions();
   }catch(e){toast(e.message);}
 }
-function closeDetail(){$("detailModal").classList.add("hidden");$("answerInput").value="";currentQid=null;}
+function previewAns(input){
+  const f=input.files[0];
+  const img=$("ansPreview"),btn=document.querySelector(".ans-photo-btn");
+  if(!f){img.classList.add("hidden");if(btn)btn.classList.remove("has-img");return;}
+  img.src=URL.createObjectURL(f);img.classList.remove("hidden");
+  if(btn)btn.classList.add("has-img");
+}
+function resetAnsInput(){
+  $("answerInput").value="";$("ansImage").value="";
+  $("ansPreview").classList.add("hidden");
+  const btn=document.querySelector(".ans-photo-btn");if(btn)btn.classList.remove("has-img");
+}
+function closeDetail(){$("detailModal").classList.add("hidden");resetAnsInput();currentQid=null;}
+let _submittingAnswer=false;
 async function submitAnswer(){
-  const body=$("answerInput").value.trim();if(!body)return;
-  try{await api("/api/questions/"+currentQid+"/answers",{method:"POST",body:JSON.stringify({body})});
-    $("answerInput").value="";const {answers}=await api("/api/questions/"+currentQid);renderAnswers(answers);loadQuestions();
+  if(_submittingAnswer)return;
+  const body=$("answerInput").value.trim();
+  const file=$("ansImage").files[0];
+  if(!body && !file){toast("답변 내용이나 사진을 넣어주세요.");return;}
+  _submittingAnswer=true;
+  const fd=new FormData();fd.append("body",body);
+  if(file)fd.append("image",file);
+  try{
+    const r=await fetch("/api/questions/"+currentQid+"/answers",{method:"POST",headers:{Authorization:"Bearer "+token},body:fd});
+    const d=await r.json();if(!r.ok)throw new Error(d.error||"실패");
+    resetAnsInput();
+    const {answers}=await api("/api/questions/"+currentQid);renderAnswers(answers);loadQuestions();
   }catch(e){toast(e.message);}
+  finally{_submittingAnswer=false;}
 }
 
 // ===== Admin =====

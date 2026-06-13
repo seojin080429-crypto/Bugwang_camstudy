@@ -527,7 +527,14 @@ function connectSocket(){
   socket.on("user-left",({id})=>{delete participants_ui[id];removePeer(id);removeTile(id);refreshEmpty();});
   socket.on("peer-cam-state",({id,camOn})=>{
     if(participants_ui[id]) participants_ui[id].camOn=camOn;
-    updateTileCam(id,camOn);
+    const v=$("video-"+id);
+    // 영상이 이미 붙어있으면 camOn 신호에 맞춰 표시/숨김
+    if(camOn && v && v.srcObject && v.srcObject.getVideoTracks().length>0){
+      updateTileCam(id,true);
+      v.play().catch(()=>{});
+    } else {
+      updateTileCam(id,camOn);
+    }
   });
   socket.on("webrtc-offer",async({from,sdp})=>{
     const pc=createPeer(from,false);await pc.setRemoteDescription(sdp);
@@ -648,22 +655,33 @@ function createPeer(id,initiator){
   const pc=new RTCPeerConnection(RTC_CONFIG);peers[id]=pc;
   if(localStream)localStream.getTracks().forEach(tr=>pc.addTrack(tr,localStream));
   pc.onicecandidate=e=>{if(e.candidate)socket.emit("webrtc-ice",{to:id,candidate:e.candidate});};
+  // onnegotiationneeded: 트랙 추가/변경 시 브라우저가 자동으로 재협상 트리거
+  pc.onnegotiationneeded=async()=>{
+    try{ await renegotiate(id); }catch(e){}
+  };
   pc.ontrack=e=>{
     const p=participants_ui[id];
     if(!$("tile-"+id)) ensureTile(id, p?p.nickname:id, false, false);
     const v=$("video-"+id);
     if(!v) return;
     const stream=e.streams[0];
-    // 트랙이 실제로 있을 때만 영상 표시
-    if(stream && stream.getVideoTracks().length>0 && stream.getVideoTracks()[0].readyState!=="ended"){
-      v.srcObject=stream;
-      updateTileCam(id,true);
-      v.play().catch(()=>{});
-    }
+    if(!stream) return;
+    v.srcObject=stream;
+    updateTileCam(id,true);
+    v.play().catch(()=>{});
   };
-  if(initiator)renegotiate(id);return pc;
+  // localStream 없으면 onnegotiationneeded 안 발화 → 수동으로 offer 전송
+  if(initiator && !localStream) renegotiate(id);
+  return pc;
 }
-async function renegotiate(id){const pc=peers[id];if(!pc)return;const o=await pc.createOffer();await pc.setLocalDescription(o);socket.emit("webrtc-offer",{to:id,sdp:pc.localDescription});}
+async function renegotiate(id){
+  const pc=peers[id];if(!pc)return;
+  // signalingState가 stable일 때만 offer 생성 (충돌 방지)
+  if(pc.signalingState!=="stable")return;
+  const o=await pc.createOffer();
+  await pc.setLocalDescription(o);
+  socket.emit("webrtc-offer",{to:id,sdp:pc.localDescription});
+}
 function removePeer(id){if(peers[id]){peers[id].close();delete peers[id];}}
 
 // ===== tiles =====

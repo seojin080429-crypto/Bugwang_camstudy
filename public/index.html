@@ -471,7 +471,7 @@
     <div class="qna-bar">
       <div class="search-box">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        <input id="qSearch" placeholder="과목·내용·작성자 검색" oninput="renderQuestions()"/>
+        <input id="qSearch" placeholder="과목·내용·작성자 검색" oninput="onSearchInput()"/>
       </div>
       <div class="sort-seg">
         <button id="sort-new" class="active" onclick="setSort('new')">최신순</button>
@@ -1120,14 +1120,27 @@ function openPrivacy(){$("privacy").classList.remove("hidden");pStart=Date.now()
 function closePrivacy(){$("privacy").classList.add("hidden");clearInterval(pTimer);}
 
 // ===== Q&A =====
-async function loadQuestions(){
+async function loadQuestions(force){
   if(!token)return;
-  try{allQuestions=await api("/api/questions");renderQuestions();}
-  catch(e){toast(e.message);}
+  // 이미 불러온 적 있으면 즉시 렌더(캐시) 후 백그라운드 갱신
+  if(allQuestions.length && !force){
+    renderQuestions();
+  }
+  try{
+    const data=await api("/api/questions");
+    allQuestions=data;
+    renderQuestions();
+  }catch(e){ if(!allQuestions.length) toast(e.message); }
 }
 function setSort(m){sortMode=m;
   ["new","old","ans"].forEach(k=>$("sort-"+k).classList.toggle("active",k===m));
   renderQuestions();
+}
+// 검색 입력 디바운스 (키 입력마다 재렌더 방지)
+let _searchTimer=null;
+function onSearchInput(){
+  clearTimeout(_searchTimer);
+  _searchTimer=setTimeout(renderQuestions,200);
 }
 function renderQuestions(){
   const kw=$("qSearch").value.trim().toLowerCase();
@@ -1142,15 +1155,20 @@ function renderQuestions(){
     if(sortMode==="old")return new Date(a.created_at)-new Date(b.created_at);
     return (b.answer_count||0)-(a.answer_count||0);
   });
-  const wrap=$("qGrid");wrap.innerHTML="";
+  const wrap=$("qGrid");
   if(!list.length){
     wrap.innerHTML=`<div class="q-empty">${kw?"검색 결과가 없어요.":"아직 질문이 없어요. 첫 질문을 올려보세요."}</div>`;return;
   }
+  // DocumentFragment로 한 번에 추가 (리플로우 최소화)
+  const frag=document.createDocumentFragment();
+  const myId=me.studentId, staff=isStaff();
   list.forEach(q=>{
     const card=document.createElement("div");
-    card.className="q-card"+((q.student_id===me.studentId||isStaff())?" mine":"");
+    card.className="q-card"+((q.student_id===myId||staff)?" mine":"");
     card.onclick=()=>openDetail(q.id);
-    const thumb=q.image_path?`<img class="thumb" src="${q.image_path}" loading="lazy"/>`:`<div class="thumb noimg">사진 없음</div>`;
+    const thumb=q.image_path
+      ? `<img class="thumb" src="${q.image_path}" loading="lazy" decoding="async"/>`
+      : `<div class="thumb noimg">사진 없음</div>`;
     card.innerHTML=`${thumb}
       <button class="del" title="삭제" onclick="event.stopPropagation();deleteQuestion(${q.id})">×</button>
       <div class="cbody">
@@ -1158,8 +1176,10 @@ function renderQuestions(){
         <div class="ctext">${esc(q.body||"")}</div>
         <div class="cmeta"><span>${esc(q.student_id)} · ${timeAgo(q.created_at)}</span><span>답변 ${q.answer_count||0}</span></div>
       </div>`;
-    wrap.appendChild(card);
+    frag.appendChild(card);
   });
+  wrap.innerHTML="";
+  wrap.appendChild(frag);
 }
 async function deleteQuestion(id){
   if(!confirm("이 질문을 삭제할까요? 답변도 함께 사라져요."))return;
@@ -1172,6 +1192,40 @@ function openAskModal(){$("askModal").classList.remove("hidden");}
 function closeAskModal(){$("askModal").classList.add("hidden");
   $("askSubject").value="";$("askBody").value="";$("askImage").value="";$("askPreview").classList.add("hidden");$("askMsg").textContent="";}
 function previewAsk(input){const f=input.files[0];if(!f)return;const img=$("askPreview");img.src=URL.createObjectURL(f);img.classList.remove("hidden");}
+
+// 업로드 전 이미지 압축: 긴 변 최대 1280px, JPEG 품질 0.8
+// 큰 카메라 사진(수 MB)을 수백 KB로 줄여 목록 렉/전송 부담 해소
+async function compressImage(file, maxSize=1280, quality=0.8){
+  // 이미지가 아니거나 이미 작으면 원본 사용
+  if(!file || !/^image\//.test(file.type)) return file;
+  try{
+    const bitmap = await createImageBitmap(file).catch(()=>null);
+    let w,h,src;
+    if(bitmap){ w=bitmap.width; h=bitmap.height; src=bitmap; }
+    else{
+      // createImageBitmap 미지원 폴백
+      src = await new Promise((res,rej)=>{
+        const im=new Image(); im.onload=()=>res(im); im.onerror=rej;
+        im.src=URL.createObjectURL(file);
+      });
+      w=src.naturalWidth; h=src.naturalHeight;
+    }
+    // 이미 충분히 작으면 원본 그대로
+    if(Math.max(w,h)<=maxSize && file.size < 700*1024) return file;
+    const scale=Math.min(1, maxSize/Math.max(w,h));
+    const cw=Math.round(w*scale), ch=Math.round(h*scale);
+    const canvas=document.createElement("canvas");
+    canvas.width=cw; canvas.height=ch;
+    const ctx=canvas.getContext("2d");
+    ctx.drawImage(src,0,0,cw,ch);
+    if(bitmap && bitmap.close) bitmap.close();
+    const blob=await new Promise(res=>canvas.toBlob(res,"image/jpeg",quality));
+    if(!blob) return file;
+    // 압축 결과가 원본보다 크면 원본 사용
+    if(blob.size>=file.size) return file;
+    return new File([blob], (file.name||"photo").replace(/\.\w+$/,"")+".jpg", {type:"image/jpeg"});
+  }catch(e){ return file; }
+}
 let _submittingQuestion=false;
 async function submitQuestion(){
   if(_submittingQuestion)return;
@@ -1181,11 +1235,15 @@ async function submitQuestion(){
   const btn=$("askModal").querySelector(".btn-pill");
   if(btn){btn.disabled=true;btn.textContent="올리는 중...";}
   const fd=new FormData();fd.append("subject",subject);fd.append("body",$("askBody").value);
-  if($("askImage").files[0])fd.append("image",$("askImage").files[0]);
+  const rawImg=$("askImage").files[0];
+  if(rawImg){
+    const compressed=await compressImage(rawImg);
+    fd.append("image",compressed);
+  }
   try{
     const r=await fetch("/api/questions",{method:"POST",headers:{Authorization:"Bearer "+token},body:fd});
     const d=await r.json();if(!r.ok)throw new Error(d.error||"실패");
-    closeAskModal();toast("질문을 올렸어요.");loadQuestions();
+    closeAskModal();toast("질문을 올렸어요.");loadQuestions(true);
   }catch(e){msg.className="msg err";msg.textContent=e.message;}
   finally{
     _submittingQuestion=false;
@@ -1248,12 +1306,15 @@ async function submitAnswer(){
   if(!body && !file){toast("답변 내용이나 사진을 넣어주세요.");return;}
   _submittingAnswer=true;
   const fd=new FormData();fd.append("body",body);
-  if(file)fd.append("image",file);
+  if(file){
+    const compressed=await compressImage(file);
+    fd.append("image",compressed);
+  }
   try{
     const r=await fetch("/api/questions/"+currentQid+"/answers",{method:"POST",headers:{Authorization:"Bearer "+token},body:fd});
     const d=await r.json();if(!r.ok)throw new Error(d.error||"실패");
     resetAnsInput();
-    const {answers}=await api("/api/questions/"+currentQid);renderAnswers(answers);loadQuestions();
+    const {answers}=await api("/api/questions/"+currentQid);renderAnswers(answers);loadQuestions(true);
   }catch(e){toast(e.message);}
   finally{_submittingAnswer=false;}
 }

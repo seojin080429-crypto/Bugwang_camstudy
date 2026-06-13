@@ -336,6 +336,20 @@ io.on("connection", (socket) => {
   socket.emit("participant-count", participants.size);
 
   socket.on("join-study", ({ camOn }) => {
+    // ── 같은 학번이 다른 기기로 이미 방에 있으면 그 기기를 내보냄 (1인 1기기) ──
+    for (const [otherId, p] of participants.entries()) {
+      if (otherId !== socket.id && p.studentId === socket.user.studentId) {
+        const oldSocket = io.sockets.sockets.get(otherId);
+        // 기존 기기에 알림 후 방에서 제거
+        if (oldSocket) {
+          oldSocket.emit("force-leave-study", { reason: "다른 기기에서 캠스터디에 입장했어요." });
+          oldSocket.leave(ROOM);
+        }
+        participants.delete(otherId);
+        socket.to(ROOM).emit("user-left", { id: otherId });
+      }
+    }
+
     socket.join(ROOM);
     participants.set(socket.id, { studentId: socket.user.studentId, nickname: socket.user.nickname || socket.user.studentId, camOn: !!camOn });
     const others = [...participants.entries()].filter(([id]) => id !== socket.id).map(([id, p]) => ({ id, ...p }));

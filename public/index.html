@@ -251,6 +251,23 @@
     border-radius:20px 20px 0 0;padding:28px 26px 26px}
   @media(min-width:600px){.modal-card{border-radius:20px}}
   .modal-card h2{font-family:var(--font-display);font-size:24px;font-weight:600;letter-spacing:-0.4px;margin:0 0 18px}
+  /* 안내(사용법/패치노트) 모달 */
+  .guide-tabs{display:flex;background:var(--parchment);border-radius:9999px;padding:3px;margin-bottom:18px}
+  .guide-t{flex:1;font-size:15px;letter-spacing:-0.2px;color:var(--ink-80);
+    border-radius:9999px;padding:9px 0;transition:.15s}
+  .guide-t.active{background:var(--canvas);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .guide-sec{margin-bottom:20px}
+  .guide-sec h3{font-family:var(--font-display);font-size:16px;font-weight:600;letter-spacing:-0.3px;margin:0 0 6px}
+  .guide-sec p{font-size:14.5px;line-height:1.55;letter-spacing:-0.2px;color:var(--ink-80);margin:0 0 6px}
+  .guide-sec p b{color:var(--ink)}
+  .patch-item{margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid var(--divider-soft)}
+  .patch-item:last-child{border-bottom:none}
+  .patch-ver{font-family:var(--font-display);font-size:18px;font-weight:600;letter-spacing:-0.3px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .patch-tag{font-size:11px;font-weight:600;padding:3px 10px;border-radius:9999px}
+  .patch-tag.new{background:var(--primary);color:#fff}
+  .patch-item ul{margin:0;padding-left:18px}
+  .patch-item li{font-size:14px;line-height:1.6;letter-spacing:-0.2px;color:var(--ink-80);margin-bottom:5px}
+  .patch-item li b{color:var(--ink)}
   .mrow{margin-bottom:16px}
   .mrow label{display:block;font-size:12px;color:var(--ink-48);margin-bottom:6px;letter-spacing:-0.12px}
   .mrow input[type=text],.mrow input[type=password],.mrow textarea{width:100%;padding:12px 15px;
@@ -428,6 +445,7 @@
       <button id="tab-admin" class="hidden" onclick="showTab('admin')">관리자</button>
     </div>
     <span class="who" id="navWho"></span>
+    <button class="btn-util quiet" onclick="openGuide()" title="사용법·패치노트">안내</button>
     <button class="btn-util quiet" onclick="openPwModal()">비밀번호</button>
     <button class="btn-util" onclick="logout()">로그아웃</button>
   </nav>
@@ -557,6 +575,81 @@
   <div class="tm" id="privacyTimer">00:00</div>
   <div class="tip">캠스터디는 뒤에서 계속 진행 중이에요. 옆 사람 눈치 보지 말고 공부하세요.</div>
   <button onclick="closePrivacy()">화면 다시 보기</button>
+</div>
+
+<!-- 안내(사용법/패치노트) modal -->
+<div id="guideModal" class="modal hidden">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 style="margin:0">안내 <span id="guideVersion" style="font-size:13px;color:var(--ink-48);font-weight:400;margin-left:6px"></span></h2>
+      <button class="btn-cancel" style="flex:none;padding:8px 16px;font-size:14px" onclick="closeGuide()">닫기</button>
+    </div>
+    <div class="guide-tabs">
+      <button class="guide-t active" id="gt-usage" onclick="showGuide('usage')">사용법</button>
+      <button class="guide-t" id="gt-patch" onclick="showGuide('patch')">패치노트</button>
+    </div>
+
+    <!-- 사용법 -->
+    <div id="guide-usage" class="guide-panel">
+      <div class="guide-sec">
+        <h3>📷 캠스터디 참여</h3>
+        <p>캠스터디 탭에서 <b>"참여하기"</b>를 누르면 영상에 입장해요. 마이크는 꺼진 채로 시작하고, 카메라 없이도 참여할 수 있어요. 채팅으로 대화하면 돼요.</p>
+      </div>
+      <div class="guide-sec">
+        <h3>📱 기기 등록 (중요!)</h3>
+        <p>한 계정당 <b>최대 2대의 기기</b>까지만 캠스터디에 참여할 수 있어요. (예: 폰 + 패드)</p>
+        <p>3번째 기기로 입장하면 <b>"기기가 가득 찼어요"</b> 안내가 떠요. 기기를 바꾸고 싶으면 <b>관리자(선생님)에게 기기 초기화</b>를 요청하세요.</p>
+        <p style="color:var(--ink-48);font-size:13px">※ 되도록 <b>한 기기(본인 폰)만</b> 사용하는 걸 권장해요.</p>
+      </div>
+      <div class="guide-sec">
+        <h3>🔄 카메라 전환</h3>
+        <p>참여 중 <b>"카메라 전환"</b> 버튼으로 전면/후면 카메라를 바꿀 수 있어요. (카메라가 2개 이상인 기기만)</p>
+      </div>
+      <div class="guide-sec">
+        <h3>🖼️ 화면 보기</h3>
+        <p>여러 명이 <b>작은 타일</b>로 함께 보여요. 한 명만 크게 보기로 바뀌어도 자동으로 격자 화면으로 돌아와요.</p>
+      </div>
+      <div class="guide-sec">
+        <h3>💬 질문방</h3>
+        <p>모르는 문제는 사진을 찍어 올리고, 친구들의 답변을 받을 수 있어요. 답변에도 사진을 첨부할 수 있어요.</p>
+      </div>
+      <div class="guide-sec">
+        <h3>🔒 집중 모드</h3>
+        <p>참여 중 <b>"집중 모드"</b>를 누르면 화면이 가려지고 타이머만 보여요. 캠스터디는 뒤에서 계속 진행돼요.</p>
+      </div>
+    </div>
+
+    <!-- 패치노트 -->
+    <div id="guide-patch" class="guide-panel hidden">
+      <div class="patch-item">
+        <div class="patch-ver">v2.0 <span class="patch-tag new">최신</span></div>
+        <ul>
+          <li><b>영상 시스템 전면 개편</b> — 더 안정적인 화상 연결로 바꿔, 인원이 많아도 끊김이 줄었어요.</li>
+          <li><b>기기 등록제</b> — 계정당 최대 2대까지 등록되도록 했어요.</li>
+          <li><b>타일 화면 고정</b> — 여러 명을 작은 타일로 보고, 한 명만 크게 보기에 갇히지 않게 했어요.</li>
+          <li><b>카메라 전환 버튼</b> 추가 (전면/후면).</li>
+          <li>관리자가 내보내면 채팅에 알림이 떠요.</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v1.5</div>
+        <ul>
+          <li>로그인 30일 유지 — 새로고침해도 다시 로그인 안 해도 돼요.</li>
+          <li>질문방 속도 개선 — 사진 자동 압축으로 더 빠르게.</li>
+          <li>채팅 안 읽음 알림 배지 추가.</li>
+          <li>모바일 화면 절전 방지 (참여 중 화면 안 꺼짐).</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v1.0</div>
+        <ul>
+          <li>캠스터디 + 질문방 정식 오픈.</li>
+          <li>관리자 기능 (계정 관리, 카메라 끄기/추방).</li>
+          <li>화면 가리기, 집중 모드.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- password modal -->
@@ -706,6 +799,21 @@ $("loginPw").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
 window.addEventListener("load",()=>{restoreSession();});
 
 // ===== password =====
+// ===== 안내(사용법/패치노트) =====
+const APP_VERSION="v2.0";
+function openGuide(){
+  $("guideVersion").textContent=APP_VERSION;
+  showGuide("usage");
+  $("guideModal").classList.remove("hidden");
+}
+function closeGuide(){$("guideModal").classList.add("hidden");}
+function showGuide(which){
+  $("gt-usage").classList.toggle("active",which==="usage");
+  $("gt-patch").classList.toggle("active",which==="patch");
+  $("guide-usage").classList.toggle("hidden",which!=="usage");
+  $("guide-patch").classList.toggle("hidden",which!=="patch");
+}
+
 function openPwModal(){$("pwModal").classList.remove("hidden");$("pwMsg").textContent="";}
 function closePwModal(){$("pwModal").classList.add("hidden");$("curPw").value="";$("newPw").value="";}
 async function changePw(){

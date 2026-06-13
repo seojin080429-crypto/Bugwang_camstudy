@@ -118,6 +118,15 @@
     justify-content:center;gap:8px;color:#cccccc;font-size:13px;letter-spacing:-0.12px}
   .tile .av{width:52px;height:52px;border-radius:50%;background:var(--primary);color:#fff;
     display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;font-family:var(--font-display)}
+  /* 관리자 타일 제어 버튼 (우상단) */
+  .tile-admin{position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:2}
+  .tile-act{width:34px;height:34px;border-radius:9999px;background:rgba(0,0,0,.55);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(4px);transition:transform .12s,background .15s}
+  .tile-act svg{width:18px;height:18px}
+  .tile-act:active{transform:scale(.9)}
+  .tile-act.danger{background:rgba(215,0,21,.75)}
+  @media(max-width:640px){.tile-act{width:38px;height:38px}.tile-act svg{width:20px;height:20px}}
   .study-empty{text-align:center;color:var(--ink-48);padding:48px 16px;font-size:17px;line-height:1.5}
   .study-empty small{display:block;margin-top:8px;font-size:13px;color:var(--ink-48)}
 
@@ -760,6 +769,37 @@ function connectSocket(){
     }
   });
 
+  // 관리자가 내 카메라를 강제로 끔
+  socket.on("force-cam-off",({by})=>{
+    if(camOn){
+      // 카메라 끄기 (toggleCam의 끄기 로직 재사용)
+      camOn=false;
+      for(const id in peers){
+        const sender=peers[id].getSenders().find(s=>s.track&&s.track.kind==="video");
+        if(sender) sender.replaceTrack(null);
+      }
+      if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
+      $("btnCam").textContent="카메라 켜기";$("btnCam").classList.remove("on");
+      $("btnFlip").disabled=true;
+      const v=$("video-me");if(v)v.srcObject=null;updateTileCam("me",false);
+      socket.emit("cam-state",{camOn:false});
+    }
+    toast(`관리자(${by||"관리자"})가 내 카메라를 껐어요.`);
+  });
+
+  // 관리자가 나를 캠스터디에서 추방
+  socket.on("kicked-from-study",({by})=>{
+    if(inStudy){
+      leaveStudy();
+      toast(`관리자(${by||"관리자"})가 나를 캠스터디에서 내보냈어요.`);
+    }
+  });
+
+  // 관리자 동작이 거부됨 (예: 운영자 추방 시도)
+  socket.on("admin-action-denied",({reason})=>{
+    toast(reason||"이 동작은 허용되지 않아요.");
+  });
+
   // ── 재연결 처리 ──────────────────────────────────────────
   // "io server disconnect" = 서버가 명시적으로 끊음 → 수동 재연결 필요
   // 그 외(transport close, ping timeout 등) = Socket.IO가 자동 재연결하므로 개입 X
@@ -906,14 +946,38 @@ function ensureTile(id,name,hasCam,isMe){
   const div=document.createElement("div");div.className="tile";div.id="tile-"+id;
   const digits=(name||"").match(/\d+/);
   const ini=digits?digits[0].slice(-2):((name||"?").trim()[0]||"?");
+  // 관리자이고 본인 타일이 아니면 제어 버튼 표시
+  const adminBtns=(!isMe && isStaff())
+    ? `<div class="tile-admin">
+         <button class="tile-act" onclick="adminMuteCam('${id}')" title="카메라 끄기">
+           <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="13" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M15 10l6-3v10l-6-3" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+         </button>
+         <button class="tile-act danger" onclick="adminKickStudy('${id}')" title="캠스터디에서 내보내기">
+           <svg viewBox="0 0 24 24" fill="none"><path d="M14 7l-7 7M7 7l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17 4h2a1 1 0 011 1v14a1 1 0 01-1 1h-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+         </button>
+       </div>` : "";
   div.innerHTML=`<video id="video-${id}" autoplay playsinline ${isMe?"muted":""}></video>
     <div class="nocam" id="nocam-${id}"><div class="av">${esc(ini)}</div><span>카메라 꺼짐</span></div>
-    <div class="nm">${esc(name)}</div>`;
+    <div class="nm">${esc(name)}</div>${adminBtns}`;
   $("videoTiles").appendChild(div);updateTileCam(id,hasCam);
 }
 function updateTileCam(id,on){const n=$("nocam-"+id),v=$("video-"+id);if(!n||!v)return;n.style.display=on?"none":"flex";v.style.display=on?"block":"none";}
 function removeTile(id){const t=$("tile-"+id);if(t)t.remove();}
 function refreshEmpty(){$("studyEmpty").style.display=$("videoTiles").children.length?"none":"block";}
+
+// ===== 관리자: 캠스터디 참가자 제어 =====
+function adminMuteCam(targetId){
+  const p=participants_ui[targetId];
+  const who=p?p.nickname:"이 학생";
+  if(!confirm(`${who} 님의 카메라를 끌까요?`))return;
+  socket.emit("admin-mute-cam",{targetId});
+}
+function adminKickStudy(targetId){
+  const p=participants_ui[targetId];
+  const who=p?p.nickname:"이 학생";
+  if(!confirm(`${who} 님을 캠스터디에서 내보낼까요?`))return;
+  socket.emit("admin-kick-study",{targetId});
+}
 
 // ===== chat =====
 function sendChat(){const i=$("chatInput"),t=i.value.trim();if(!t)return;socket.emit("chat",{text:t});i.value="";}

@@ -337,6 +337,20 @@
   </div>
 </div>
 
+<!-- rename modal -->
+<div id="renameModal" class="modal hidden">
+  <div class="modal-card">
+    <h2>이름 변경</h2>
+    <div class="mrow"><label>학번</label><input type="text" id="renameId" disabled style="color:var(--ink-48)"/></div>
+    <div class="mrow"><label>새 이름</label><input type="text" id="renameNick" placeholder="변경할 이름 입력" maxlength="20"/></div>
+    <div id="renameMsg" class="msg"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeRenameModal()">취소</button>
+      <button class="btn-pill" onclick="submitRename()">변경</button>
+    </div>
+  </div>
+</div>
+
 <!-- add user modal -->
 <div id="addUserModal" class="modal hidden">
   <div class="modal-card">
@@ -787,6 +801,7 @@ function renderAdminUsers(){
     const badge=isOwnerRow?`<span class="role-badge owner">운영자</span>`:(isAdminRow?`<span class="role-badge admin">관리자</span>`:"");
     let acts="";
     if(!isOwnerRow)acts+=`<button class="aact" onclick="resetPw('${u.student_id}')">비번 초기화</button>`;
+    if(!isOwnerRow)acts+=`<button class="aact" onclick="openRenameModal('${u.student_id}','${(u.nickname||u.student_id).replace(/'/g,"\\'")}')">이름 변경</button>`;
     if(isOwner()&&!isOwnerRow){
       acts+=isAdminRow
         ?`<button class="aact" onclick="setRole('${u.student_id}','student')">관리자 박탈</button>`
@@ -828,6 +843,23 @@ async function submitAddUser(){
   if(!/^\d{5}$/.test(studentId)){msg.className="msg err";msg.textContent="학번은 5자리 숫자로 입력하세요.";return;}
   try{await api("/api/admin/users",{method:"POST",body:JSON.stringify({studentId,nickname})});
     closeAddUserModal();toast(`${studentId} 계정을 추가했어요. (비번 1234)`);loadAdminUsers();
+  }catch(e){msg.className="msg err";msg.textContent=e.message;}
+}
+function openRenameModal(id, currentNick){
+  $("renameId").value=id;
+  $("renameNick").value=currentNick;
+  $("renameMsg").textContent="";
+  $("renameModal").classList.remove("hidden");
+  setTimeout(()=>$("renameNick").focus(),100);
+}
+function closeRenameModal(){$("renameModal").classList.add("hidden");}
+async function submitRename(){
+  const id=$("renameId").value, nick=$("renameNick").value.trim(), msg=$("renameMsg");
+  msg.className="msg";
+  if(!nick){msg.className="msg err";msg.textContent="이름을 입력하세요.";return;}
+  try{
+    await api("/api/admin/users/"+id+"/nickname",{method:"POST",body:JSON.stringify({nickname:nick})});
+    closeRenameModal();toast(`${id} 이름을 '${nick}'으로 변경했어요.`);loadAdminUsers();
   }catch(e){msg.className="msg err";msg.textContent=e.message;}
 }
 </script>

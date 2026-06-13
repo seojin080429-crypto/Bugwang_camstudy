@@ -288,6 +288,10 @@
   .tabbar-btn svg{width:25px;height:25px}
   .tabbar-btn span{font-size:11px;letter-spacing:-0.1px;font-weight:500}
   .tabbar-btn.active{color:var(--primary)}
+  .tabbar-icon{position:relative;display:inline-flex}
+  .tabbar-badge{position:absolute;top:-5px;right:-9px;min-width:17px;height:17px;padding:0 4px;
+    border-radius:9999px;background:#d70015;color:#fff;font-size:10.5px;font-weight:700;
+    display:inline-flex;align-items:center;justify-content:center;line-height:1}
 
   /* ============================================================
      모바일 (≤640px) — 앱처럼 동작하도록 종합 개선
@@ -494,7 +498,10 @@
   <!-- 모바일 하단 탭바 -->
   <nav class="tabbar" id="tabbar">
     <button class="tabbar-btn active" id="tb-study" onclick="showTab('study')">
-      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="12" rx="2.5" stroke="currentColor" stroke-width="1.7"/><circle cx="8" cy="12" r="2" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span class="tabbar-icon">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="12" rx="2.5" stroke="currentColor" stroke-width="1.7"/><circle cx="8" cy="12" r="2" stroke="currentColor" stroke-width="1.5"/></svg>
+        <span class="tabbar-badge hidden" id="tabChatBadge"></span>
+      </span>
       <span>캠스터디</span>
     </button>
     <button class="tabbar-btn" id="tb-qna" onclick="showTab('qna')">
@@ -717,8 +724,7 @@ function showStudyPanel(which){
   $("subt-video").classList.toggle("active",which==="video");
   $("subt-chat").classList.toggle("active",which==="chat");
   if(which==="chat"){
-    unreadChat=0;
-    $("chatBadge").classList.add("hidden");
+    clearChatUnread();
     // 채팅 보일 때 맨 아래로 스크롤
     const log=$("chatLog");if(log)log.scrollTop=log.scrollHeight;
   }
@@ -737,6 +743,8 @@ function showTab(t){
   $("tb-admin").classList.toggle("active",t==="admin");
   if(t==="qna")loadQuestions();
   if(t==="admin")loadAdminUsers();
+  // 캠스터디 탭으로 와서 채팅이 보이는 상태면 안 읽음 배지 클리어
+  if(t==="study" && isChatVisible()) clearChatUnread();
   window.scrollTo(0,0);
 }
 
@@ -855,6 +863,7 @@ function joinStudy(){
   $("camNotice").classList.remove("hidden");
   ensureTile("me",me.nickname+" (나)",false,true);
   socket.emit("join-study",{camOn:false});refreshEmpty();
+  requestWakeLock(); // 참여 중 화면 꺼짐 방지
 }
 function leaveStudy(){
   inStudy=false;camOn=false;socket.emit("leave-study");
@@ -867,7 +876,28 @@ function leaveStudy(){
   $("btnFlip").disabled=true;
   $("btnPrivacy").disabled=true;$("chatInput").disabled=true;$("chatSend").disabled=true;
   $("camNotice").classList.add("hidden");refreshEmpty();
+  releaseWakeLock(); // 화면 꺼짐 방지 해제
 }
+
+// ===== 화면 꺼짐 방지 (Wake Lock) =====
+let wakeLock=null;
+async function requestWakeLock(){
+  try{
+    if("wakeLock" in navigator){
+      wakeLock=await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release",()=>{ wakeLock=null; });
+    }
+  }catch(e){ /* 미지원/거부 시 조용히 무시 */ }
+}
+async function releaseWakeLock(){
+  try{ if(wakeLock){ await wakeLock.release(); wakeLock=null; } }catch(e){}
+}
+// 화면이 잠깐 꺼졌다 켜지면 Wake Lock이 자동 해제되므로, 복귀 시 다시 요청
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible" && inStudy && !wakeLock){
+    requestWakeLock();
+  }
+});
 
 // ===== camera =====
 async function toggleCam(){
@@ -1043,13 +1073,39 @@ function addChat(m){
     d.innerHTML=`<span class="who">${esc(m.nickname)}</span><span class="ctxt">${esc(m.text)}</span>${delBtn}`;
   }
   log.appendChild(d);log.scrollTop=log.scrollHeight;
-  // 모바일에서 채팅 패널이 안 보일 때 새 메시지 → 배지 표시
-  if(!m.system && $("studyGrid") && $("studyGrid").classList.contains("show-video")){
+  // 채팅을 실제로 보고 있지 않을 때 새 메시지(시스템 제외) → 안 읽음 배지
+  if(!m.system && !isChatVisible()){
     unreadChat++;
-    const badge=$("chatBadge");
-    if(badge){badge.textContent=unreadChat>99?"99+":unreadChat;badge.classList.remove("hidden");}
+    updateChatBadges();
   }
 }
+// 지금 채팅이 화면에 보이는 상태인가?
+function isChatVisible(){
+  // 모바일 여부
+  const isMobile=window.matchMedia("(max-width:640px)").matches;
+  // 캠스터디 탭이 아니면 채팅 안 보임
+  const onStudyTab=!$("view-study").classList.contains("hidden");
+  if(!onStudyTab) return false;
+  if(isMobile){
+    // 모바일: 채팅 패널이 떠 있어야 보임
+    return $("studyGrid") && $("studyGrid").classList.contains("show-chat");
+  }
+  // 데스크탑: 캠스터디 탭이면 채팅이 항상 옆에 보임
+  return true;
+}
+// 두 배지(서브탭 + 하단 탭바) 동기화
+function updateChatBadges(){
+  const txt=unreadChat>99?"99+":String(unreadChat);
+  const sub=$("chatBadge"), tab=$("tabChatBadge");
+  if(unreadChat>0){
+    if(sub){sub.textContent=txt;sub.classList.remove("hidden");}
+    if(tab){tab.textContent=txt;tab.classList.remove("hidden");}
+  }else{
+    if(sub)sub.classList.add("hidden");
+    if(tab)tab.classList.add("hidden");
+  }
+}
+function clearChatUnread(){unreadChat=0;updateChatBadges();}
 function deleteChat(id){socket.emit("delete-chat",{id});}
 
 // ===== privacy =====

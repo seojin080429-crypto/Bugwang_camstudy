@@ -495,6 +495,12 @@ io.on("connection", (socket) => {
     io.to(ROOM).emit("chat-deleted", { id });
   });
 
+  // 관리자: 시스템 공지를 채팅에 표시 (Jitsi 추방/카메라끄기 등 알림용)
+  socket.on("system-notice", ({ text }) => {
+    if (!isStaffRole(socket.user.role) || !text) return;
+    io.to(ROOM).emit("chat", { system: true, text: String(text).slice(0, 200), ts: Date.now() });
+  });
+
   function leave() {
     const p = participants.get(socket.id);
     if (p) {

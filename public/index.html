@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>우리반 캠스터디</title>
 <script src="/socket.io/socket.io.js"></script>
+<script src="https://8x8.vc/vpaas-magic-cookie-2d4ea985808c4159987a9f058f900c4d/external_api.js"></script>
 <style>
   /* ===== Apple-style white theme ===== */
   :root{
@@ -106,6 +107,11 @@
   @media(max-width:860px){.study-grid{grid-template-columns:1fr}}
 
   .video-area{background:var(--parchment);border-radius:18px;padding:16px;min-height:280px}
+  /* Jitsi 영상 컨테이너 */
+  .jitsi-container{width:100%;height:600px;border-radius:12px;overflow:hidden;display:none;background:#1d1d1f}
+  .jitsi-container.active{display:block}
+  .jitsi-container iframe{width:100%;height:100%;border:0}
+  @media(max-width:640px){.jitsi-container{height:calc(100vh - 280px);min-height:420px}}
   .cam-notice{display:flex;align-items:center;gap:8px;background:#fff4e0;color:#8a5a00;
     border:1px solid #ffe0a3;border-radius:12px;padding:10px 14px;margin-bottom:12px;
     font-size:13px;letter-spacing:-0.12px;line-height:1.4}
@@ -222,6 +228,8 @@
   .role-badge{font-size:11px;font-weight:600;letter-spacing:-0.1px;padding:3px 10px;border-radius:9999px}
   .role-badge.owner{background:#1d1d1f;color:#fff}
   .role-badge.admin{background:#e6f0ff;color:var(--primary)}
+  .dev-badge{font-size:11px;color:var(--ink-48);background:var(--parchment);
+    padding:2px 8px;border-radius:9999px;letter-spacing:-0.1px}
   .arow .aacts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
   .aact{font-size:12px;letter-spacing:-0.12px;padding:6px 12px;border-radius:9999px;
     background:var(--parchment);color:var(--ink-80);white-space:nowrap;transition:transform .12s}
@@ -430,9 +438,7 @@
       <div class="count-pill"><span class="live-dot"></span>현재 <b id="studyCount">0</b>명 참여중</div>
       <div class="study-ctrls">
         <button class="ctrl join" id="btnJoin" onclick="toggleStudy()">참여하기</button>
-        <button class="ctrl" id="btnCam" onclick="toggleCam()" disabled>카메라 켜기</button>
-        <button class="ctrl" id="btnFlip" onclick="flipCamera()" disabled>카메라 전환</button>
-        <button class="ctrl" id="btnPrivacy" onclick="openPrivacy()" disabled>화면 가리기</button>
+        <button class="ctrl" id="btnPrivacy" onclick="openPrivacy()" disabled>집중 모드</button>
       </div>
     </div>
     <div class="study-subtabs" id="studySubtabs">
@@ -441,14 +447,10 @@
     </div>
     <div class="study-grid show-video" id="studyGrid">
       <div class="video-area" id="videoArea">
-        <div class="cam-notice hidden" id="camNotice">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.5v4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11" r="0.8" fill="currentColor"/></svg>
-          <span>다른 사람의 카메라가 안 보이면, <b>카메라를 껐다 켜주세요.</b></span>
-        </div>
-        <div class="video-tiles" id="videoTiles"></div>
+        <div id="jitsiContainer" class="jitsi-container"></div>
         <div class="study-empty" id="studyEmpty">
           아직 참여하지 않았어요.<br>"참여하기"를 눌러 친구들과 함께 공부해요.
-          <small>마이크는 꺼져 있고 채팅으로만 대화해요 · 카메라 없이도 참여 가능</small>
+          <small>마이크는 꺼진 채로 시작해요 · 카메라 없이도 참여 가능</small>
         </div>
       </div>
       <div class="chat" id="chatPanel">
@@ -626,12 +628,7 @@
 <script>
 // ===== state =====
 let token=null, me=null, socket=null;
-let localStream=null, inStudy=false, camOn=false;
-let facingMode="user";
-const participants_ui={}; // socketId -> {nickname, camOn}
-const hiddenPeers=new Set(); // 내가 가린 참가자들의 studentId (내 화면에서만)
-const peers={};
-const RTC_CONFIG={iceServers:[{urls:"stun:stun.l.google.com:19302"}]};
+let inStudy=false;
 let allQuestions=[], sortMode="new";
 
 function isStaff(){return me&&(me.role==="owner"||me.role==="admin");}
@@ -757,42 +754,10 @@ function connectSocket(){
   socket=io({auth:{token}});
   socket.on("connect_error",e=>toast("연결 오류: "+e.message));
   socket.on("participant-count",n=>{$("studyCount").textContent=n;});
-  socket.on("existing-participants",list=>{
-    list.forEach(p=>{
-      participants_ui[p.id]={nickname:p.nickname,camOn:p.camOn,studentId:p.studentId};
-      ensureTile(p.id,p.nickname,p.camOn);
-      createPeer(p.id,true);
-    });
-    refreshEmpty();
-  });
-  socket.on("user-joined",p=>{
-    participants_ui[p.id]={nickname:p.nickname,camOn:p.camOn,studentId:p.studentId};
-    ensureTile(p.id,p.nickname,p.camOn);
-    refreshEmpty();
-  });
-  socket.on("user-left",({id})=>{delete participants_ui[id];removePeer(id);removeTile(id);refreshEmpty();});
-  socket.on("peer-cam-state",({id,camOn})=>{
-    if(participants_ui[id]) participants_ui[id].camOn=camOn;
-    const v=$("video-"+id);
-    // 영상이 이미 붙어있으면 camOn 신호에 맞춰 표시/숨김
-    if(camOn && v && v.srcObject && v.srcObject.getVideoTracks().length>0){
-      updateTileCam(id,true);
-      v.play().catch(()=>{});
-    } else {
-      updateTileCam(id,camOn);
-    }
-  });
-  socket.on("webrtc-offer",async({from,sdp})=>{
-    const pc=createPeer(from,false);await pc.setRemoteDescription(sdp);
-    const ans=await pc.createAnswer();await pc.setLocalDescription(ans);
-    socket.emit("webrtc-answer",{to:from,sdp:pc.localDescription});
-  });
-  socket.on("webrtc-answer",async({from,sdp})=>{const pc=peers[from];if(pc)await pc.setRemoteDescription(sdp);});
-  socket.on("webrtc-ice",async({from,candidate})=>{const pc=peers[from];if(pc&&candidate)try{await pc.addIceCandidate(candidate);}catch(e){}});
   socket.on("chat",m=>addChat(m));
   socket.on("chat-deleted",({id})=>{const el=document.querySelector('[data-cid="'+id+'"]');if(el)el.remove();});
 
-  // 다른 기기에서 같은 학번으로 캠스터디 입장 → 이 기기는 방에서 나가짐
+  // 다른 기기에서 같은 학번으로 입장 → 이 기기는 채팅방에서 나감
   socket.on("force-leave-study",({reason})=>{
     if(inStudy){
       leaveStudy();
@@ -800,87 +765,104 @@ function connectSocket(){
     }
   });
 
-  // 관리자가 내 카메라를 강제로 끔
-  socket.on("force-cam-off",({by})=>{
-    if(camOn){
-      // 카메라 끄기 (toggleCam의 끄기 로직 재사용)
-      camOn=false;
-      for(const id in peers){
-        const sender=peers[id].getSenders().find(s=>s.track&&s.track.kind==="video");
-        if(sender) sender.replaceTrack(null);
-      }
-      if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
-      $("btnCam").textContent="카메라 켜기";$("btnCam").classList.remove("on");
-      $("btnFlip").disabled=true;
-      const v=$("video-me");if(v)v.srcObject=null;updateTileCam("me",false);
-      socket.emit("cam-state",{camOn:false});
-    }
-    toast(`관리자(${by||"관리자"})가 내 카메라를 껐어요.`);
+  // 재연결 시 채팅방 재입장 (서버가 강제로 끊었을 때만)
+  socket.on("disconnect",(reason)=>{
+    if(reason==="io server disconnect") socket._wasInStudy=inStudy;
   });
-
-  // 관리자가 나를 캠스터디에서 추방
-  socket.on("kicked-from-study",({by})=>{
-    if(inStudy){
-      leaveStudy();
-      toast(`관리자(${by||"관리자"})가 나를 캠스터디에서 내보냈어요.`);
-    }
-  });
-
-  // 관리자 동작이 거부됨 (예: 운영자 추방 시도)
-  socket.on("admin-action-denied",({reason})=>{
-    toast(reason||"이 동작은 허용되지 않아요.");
-  });
-
-  // ── 재연결 처리 ──────────────────────────────────────────
-  // "io server disconnect" = 서버가 명시적으로 끊음 → 수동 재연결 필요
-  // 그 외(transport close, ping timeout 등) = Socket.IO가 자동 재연결하므로 개입 X
-  socket.on("disconnect", (reason)=>{
-    // 자동 재연결이 안 되는 경우에만 플래그 세팅
-    if(reason === "io server disconnect"){
-      socket._wasInStudy = inStudy;
-    }
-    // 나머지는 Socket.IO가 알아서 재연결 → connect 이벤트로 처리됨
-  });
-  socket.on("connect", ()=>{
-    // _wasInStudy가 true일 때만(서버가 강제 끊었다가 재연결) 재입장
+  socket.on("connect",()=>{
     if(!socket._wasInStudy) return;
-    socket._wasInStudy = false;
-    Object.keys(peers).forEach(removePeer);
-    Object.keys(participants_ui).forEach(k=>delete participants_ui[k]);
-    $("videoTiles").innerHTML="";
-    if(localStream){ localStream.getTracks().forEach(t=>t.stop()); localStream=null; }
-    camOn=false;
-    $("btnCam").textContent="카메라 켜기"; $("btnCam").classList.remove("on");
-    $("btnFlip").disabled=true;
-    ensureTile("me", me.nickname+" (나)", false, true);
-    socket.emit("join-study", {camOn:false});
-    refreshEmpty();
-    toast("연결이 복구됐어요. 카메라를 다시 켜주세요.");
+    socket._wasInStudy=false;
+    if(inStudy) socket.emit("join-study");
   });
 }
 
 function toggleStudy(){inStudy?leaveStudy():joinStudy();}
-function joinStudy(){
+// ===== 기기 식별자 (localStorage에 영구 저장) =====
+function getDeviceId(){
+  let id=null;
+  try{ id=localStorage.getItem("camstudy_device_id"); }catch(e){}
+  if(!id){
+    id=(crypto.randomUUID?crypto.randomUUID():(Date.now()+"-"+Math.random().toString(36).slice(2)));
+    try{ localStorage.setItem("camstudy_device_id", id); }catch(e){}
+  }
+  return id;
+}
+function getDeviceName(){
+  const ua=navigator.userAgent;
+  let name="기기";
+  if(/iPhone/.test(ua)) name="아이폰";
+  else if(/iPad/.test(ua)) name="아이패드";
+  else if(/Android/.test(ua)) name=/Mobile/.test(ua)?"안드로이드폰":"안드로이드패드";
+  else if(/Macintosh/.test(ua)) name="맥";
+  else if(/Windows/.test(ua)) name="윈도우 PC";
+  return name;
+}
+
+let jitsiApi=null;
+
+async function joinStudy(){
+  // 서버에서 기기 검증 + JaaS 입장권 받기
+  try{
+    const r=await api("/api/study/join",{method:"POST",body:JSON.stringify({
+      deviceId:getDeviceId(), deviceName:getDeviceName()
+    })});
+    startJitsi(r);
+  }catch(e){
+    if(e.message && e.message.indexOf("기기가 가득")>=0){
+      toast(e.message);
+    }else{
+      toast(e.message||"입장에 실패했어요.");
+    }
+    return;
+  }
   inStudy=true;
   $("btnJoin").textContent="나가기";$("btnJoin").classList.remove("join");$("btnJoin").classList.add("leave");
-  $("btnCam").disabled=false;$("btnPrivacy").disabled=false;$("chatInput").disabled=false;$("chatSend").disabled=false;
-  $("camNotice").classList.remove("hidden");
-  ensureTile("me",me.nickname+" (나)",false,true);
-  socket.emit("join-study",{camOn:false});refreshEmpty();
-  requestWakeLock(); // 참여 중 화면 꺼짐 방지
+  $("btnPrivacy").disabled=false;$("chatInput").disabled=false;$("chatSend").disabled=false;
+  $("jitsiContainer").classList.add("active");
+  $("studyEmpty").style.display="none";
+  socket.emit("join-study");
+  requestWakeLock();
 }
+
+function startJitsi(cfg){
+  if(typeof JitsiMeetExternalAPI==="undefined"){ toast("영상 모듈을 불러오지 못했어요. 새로고침해주세요."); return; }
+  const domain="8x8.vc";
+  const options={
+    roomName: cfg.appId + "/" + cfg.room,
+    jwt: cfg.token,
+    parentNode: document.getElementById("jitsiContainer"),
+    width:"100%", height:"100%",
+    configOverwrite:{
+      startWithAudioMuted:true,           // 마이크 끄고 시작
+      startWithVideoMuted:false,          // 카메라는 켜고 시작
+      prejoinPageEnabled:false,           // 사전 입장 화면 생략
+      disableDeepLinking:true,
+      toolbarButtons:[
+        "camera","microphone","tileview","hangup","fullscreen","settings","filmstrip"
+      ],
+    },
+    interfaceConfigOverwrite:{
+      MOBILE_APP_PROMO:false,
+      SHOW_JITSI_WATERMARK:false,
+      SHOW_CHROME_EXTENSION_BANNER:false,
+    },
+    userInfo:{ displayName: me.nickname },
+  };
+  jitsiApi=new JitsiMeetExternalAPI(domain, options);
+  // 사용자가 Jitsi 안에서 나가기(hangup) 누르면 우리 상태도 정리
+  jitsiApi.addEventListener("readyToClose", ()=>{ leaveStudy(); });
+}
+
 function leaveStudy(){
-  inStudy=false;camOn=false;socket.emit("leave-study");
-  Object.keys(peers).forEach(removePeer);
-  Object.keys(participants_ui).forEach(k=>delete participants_ui[k]);
-  if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
-  $("videoTiles").innerHTML="";
+  inStudy=false;
+  socket.emit("leave-study");
+  if(jitsiApi){ try{ jitsiApi.dispose(); }catch(e){} jitsiApi=null; }
+  $("jitsiContainer").classList.remove("active");
+  $("jitsiContainer").innerHTML="";
   $("btnJoin").textContent="참여하기";$("btnJoin").classList.add("join");$("btnJoin").classList.remove("leave");
-  $("btnCam").disabled=true;$("btnCam").textContent="카메라 켜기";$("btnCam").classList.remove("on");
-  $("btnFlip").disabled=true;
   $("btnPrivacy").disabled=true;$("chatInput").disabled=true;$("chatSend").disabled=true;
-  $("camNotice").classList.add("hidden");refreshEmpty();
-  releaseWakeLock(); // 화면 꺼짐 방지 해제
+  $("studyEmpty").style.display="block";
+  releaseWakeLock();
 }
 
 // ===== 화면 꺼짐 방지 (Wake Lock) =====
@@ -902,167 +884,6 @@ document.addEventListener("visibilitychange",()=>{
     requestWakeLock();
   }
 });
-
-// ===== camera =====
-async function toggleCam(){
-  if(!camOn){
-    try{
-      localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode},audio:false});
-      camOn=true;$("btnCam").textContent="카메라 끄기";$("btnCam").classList.add("on");
-      $("btnFlip").disabled=false;
-      const v=$("video-me");if(v){v.srcObject=localStream;v.muted=true;}
-      updateTileCam("me",true);
-      // 각 peer에 트랙 추가: 이미 sender 있으면 replaceTrack, 없으면 addTrack
-      const track=localStream.getVideoTracks()[0];
-      for(const id in peers){
-        const pc=peers[id];
-        const sender=pc.getSenders().find(s=>s.track&&s.track.kind==="video");
-        if(sender){ await sender.replaceTrack(track); }
-        else{ pc.addTrack(track,localStream); await renegotiate(id); }
-      }
-      socket.emit("cam-state",{camOn:true});
-    }catch(e){toast("카메라를 사용할 수 없어요");}
-  }else{
-    camOn=false;
-    // peer에서 video sender 트랙 null로 교체 (연결은 유지)
-    for(const id in peers){
-      const sender=peers[id].getSenders().find(s=>s.track&&s.track.kind==="video");
-      if(sender) await sender.replaceTrack(null);
-    }
-    if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
-    $("btnCam").textContent="카메라 켜기";$("btnCam").classList.remove("on");
-    $("btnFlip").disabled=true;
-    const v=$("video-me");if(v)v.srcObject=null;updateTileCam("me",false);
-    socket.emit("cam-state",{camOn:false});
-  }
-}
-
-async function flipCamera(){
-  if(!camOn)return;
-  facingMode=facingMode==="user"?"environment":"user";
-  try{
-    if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
-    localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode},audio:false});
-    const v=$("video-me");if(v){v.srcObject=localStream;v.muted=true;}
-    updateTileCam("me",true);
-    // peer 연결 끊지 않고 트랙만 교체 (replaceTrack)
-    const newTrack=localStream.getVideoTracks()[0];
-    for(const id in peers){
-      const sender=peers[id].getSenders().find(s=>s.track&&s.track.kind==="video");
-      if(sender)await sender.replaceTrack(newTrack);
-    }
-    toast(facingMode==="environment"?"후면 카메라로 전환됐어요":"전면 카메라로 전환됐어요");
-  }catch(e){
-    facingMode=facingMode==="user"?"environment":"user"; // 실패 시 되돌림
-    toast("카메라 전환 실패: "+e.message);
-  }
-}
-
-// ===== WebRTC =====
-function createPeer(id,initiator){
-  if(peers[id])return peers[id];
-  const pc=new RTCPeerConnection(RTC_CONFIG);peers[id]=pc;
-  if(localStream)localStream.getTracks().forEach(tr=>pc.addTrack(tr,localStream));
-  pc.onicecandidate=e=>{if(e.candidate)socket.emit("webrtc-ice",{to:id,candidate:e.candidate});};
-  // onnegotiationneeded: 트랙 추가/변경 시 브라우저가 자동으로 재협상 트리거
-  pc.onnegotiationneeded=async()=>{
-    try{ await renegotiate(id); }catch(e){}
-  };
-  pc.ontrack=e=>{
-    const p=participants_ui[id];
-    if(!$("tile-"+id)) ensureTile(id, p?p.nickname:id, false, false);
-    const v=$("video-"+id);
-    if(!v) return;
-    const stream=e.streams[0];
-    if(!stream) return;
-    v.srcObject=stream;
-    updateTileCam(id,true);
-    v.play().catch(()=>{});
-  };
-  // localStream 없으면 onnegotiationneeded 안 발화 → 수동으로 offer 전송
-  if(initiator && !localStream) renegotiate(id);
-  return pc;
-}
-async function renegotiate(id){
-  const pc=peers[id];if(!pc)return;
-  // signalingState가 stable일 때만 offer 생성 (충돌 방지)
-  if(pc.signalingState!=="stable")return;
-  const o=await pc.createOffer();
-  await pc.setLocalDescription(o);
-  socket.emit("webrtc-offer",{to:id,sdp:pc.localDescription});
-}
-function removePeer(id){if(peers[id]){peers[id].close();delete peers[id];}}
-
-// ===== tiles =====
-function ensureTile(id,name,hasCam,isMe){
-  if($("tile-"+id))return;
-  const div=document.createElement("div");div.className="tile";div.id="tile-"+id;
-  const digits=(name||"").match(/\d+/);
-  const ini=digits?digits[0].slice(-2):((name||"?").trim()[0]||"?");
-  // 이 타일의 studentId (가리기 상태 판단용)
-  const sid=isMe?(me&&me.studentId):(participants_ui[id]&&participants_ui[id].studentId);
-  // 관리자이고 본인 타일이 아니면 제어 버튼 표시
-  const adminBtns=(!isMe && isStaff())
-    ? `<div class="tile-admin">
-         <button class="tile-act" onclick="adminMuteCam('${id}')" title="카메라 끄기">
-           <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="13" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M15 10l6-3v10l-6-3" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-         </button>
-         <button class="tile-act danger" onclick="adminKickStudy('${id}')" title="캠스터디에서 내보내기">
-           <svg viewBox="0 0 24 24" fill="none"><path d="M14 7l-7 7M7 7l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17 4h2a1 1 0 011 1v14a1 1 0 01-1 1h-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-         </button>
-       </div>` : "";
-  // 본인 타일이 아니면 누구나 '내 화면에서 가리기' 버튼 사용 가능
-  const hideBtn=(!isMe)
-    ? `<button class="tile-hide" onclick="toggleHidePeer('${id}')" title="내 화면에서 가리기">
-         <svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/></svg>
-       </button>` : "";
-  div.innerHTML=`<video id="video-${id}" autoplay playsinline ${isMe?"muted":""}></video>
-    <div class="nocam" id="nocam-${id}"><div class="av">${esc(ini)}</div><span>카메라 꺼짐</span></div>
-    <div class="nm">${esc(name)}</div>${adminBtns}${hideBtn}
-    <div class="tile-cover" id="cover-${id}">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.6"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-      <span>가림</span>
-      <button class="cover-undo" onclick="toggleHidePeer('${id}')">다시 보기</button>
-    </div>`;
-  $("videoTiles").appendChild(div);updateTileCam(id,hasCam);
-  // 이미 가린 참가자면 가림막 적용
-  if(sid && hiddenPeers.has(sid)) applyHide(id,true);
-}
-// 특정 참가자를 내 화면에서만 가리기/풀기 (studentId 기준)
-function toggleHidePeer(tileId){
-  const info=participants_ui[tileId];
-  const sid=info&&info.studentId;
-  if(!sid)return;
-  if(hiddenPeers.has(sid)){
-    hiddenPeers.delete(sid);
-    applyHide(tileId,false);
-  }else{
-    hiddenPeers.add(sid);
-    applyHide(tileId,true);
-    toast((info.nickname||"이 학생")+" 님을 내 화면에서 가렸어요.");
-  }
-}
-function applyHide(tileId,on){
-  const tile=$("tile-"+tileId);if(!tile)return;
-  tile.classList.toggle("hidden-peer",on);
-}
-function updateTileCam(id,on){const n=$("nocam-"+id),v=$("video-"+id);if(!n||!v)return;n.style.display=on?"none":"flex";v.style.display=on?"block":"none";}
-function removeTile(id){const t=$("tile-"+id);if(t)t.remove();}
-function refreshEmpty(){$("studyEmpty").style.display=$("videoTiles").children.length?"none":"block";}
-
-// ===== 관리자: 캠스터디 참가자 제어 =====
-function adminMuteCam(targetId){
-  const p=participants_ui[targetId];
-  const who=p?p.nickname:"이 학생";
-  if(!confirm(`${who} 님의 카메라를 끌까요?`))return;
-  socket.emit("admin-mute-cam",{targetId});
-}
-function adminKickStudy(targetId){
-  const p=participants_ui[targetId];
-  const who=p?p.nickname:"이 학생";
-  if(!confirm(`${who} 님을 캠스터디에서 내보낼까요?`))return;
-  socket.emit("admin-kick-study",{targetId});
-}
 
 // ===== chat =====
 function sendChat(){const i=$("chatInput"),t=i.value.trim();if(!t)return;socket.emit("chat",{text:t});i.value="";}
@@ -1341,6 +1162,8 @@ function renderAdminUsers(){
     let acts="";
     if(!isOwnerRow)acts+=`<button class="aact" onclick="resetPw('${u.student_id}')">비번 초기화</button>`;
     if(!isOwnerRow)acts+=`<button class="aact" onclick="openRenameModal('${u.student_id}','${(u.nickname||u.student_id).replace(/'/g,"\\'")}')">이름 변경</button>`;
+    // 기기 등록된 경우 초기화 버튼
+    if((u.device_count||0)>0)acts+=`<button class="aact" onclick="resetDevices('${u.student_id}')">기기 초기화(${u.device_count})</button>`;
     if(isOwner()&&!isOwnerRow){
       acts+=isAdminRow
         ?`<button class="aact" onclick="setRole('${u.student_id}','student')">관리자 박탈</button>`
@@ -1349,9 +1172,12 @@ function renderAdminUsers(){
     if(!isOwnerRow&&(!isAdminRow||isOwner())&&u.student_id!==me.studentId){
       acts+=`<button class="aact danger" onclick="kickUser('${u.student_id}')">추방</button>`;
     }
+    // 기기 수 배지 (등록 기기가 있으면 표시)
+    const devBadge=(u.device_count||0)>0
+      ?`<span class="dev-badge" title="등록 기기 수">📱${u.device_count}</span>`:"";
     html+=`<div class="arow">
       <div class="aid">${esc(u.student_id)}</div>
-      <div class="aname">${esc(u.nickname||u.student_id)} ${badge}</div>
+      <div class="aname">${esc(u.nickname||u.student_id)} ${badge}${devBadge}</div>
       <div class="aacts">${acts||'<span style="color:var(--ink-48);font-size:12px">—</span>'}</div>
     </div>`;
   });
@@ -1372,6 +1198,11 @@ async function setRole(id,role){
 async function kickUser(id){
   if(!confirm(`${id} 계정을 추방(삭제)할까요? 되돌릴 수 없어요.`))return;
   try{await api("/api/admin/users/"+id,{method:"DELETE"});toast(`${id} 계정을 추방했어요.`);loadAdminUsers();}
+  catch(e){toast(e.message);}
+}
+async function resetDevices(id){
+  if(!confirm(`${id} 님의 등록 기기를 모두 초기화할까요?\n학생이 새 기기로 다시 등록할 수 있게 됩니다.`))return;
+  try{await api("/api/admin/users/"+id+"/devices",{method:"DELETE"});toast(`${id} 님의 기기를 초기화했어요.`);loadAdminUsers();}
   catch(e){toast(e.message);}
 }
 function openAddUserModal(){$("addUserModal").classList.remove("hidden");$("addUserMsg").textContent="";}

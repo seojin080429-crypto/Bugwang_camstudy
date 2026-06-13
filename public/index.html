@@ -855,7 +855,7 @@ function startJitsi(cfg){
       hideConferenceSubject:true,
       hideConferenceTimer:false,
       // ── 툴바: 마이크 제거(자습), 꼭 필요한 것만 ──
-      toolbarButtons:["camera","tileview","hangup","fullscreen","settings"],
+      toolbarButtons:["camera","hangup","fullscreen","settings"],
       notifications:[],   // 알림 최소화
     },
     interfaceConfigOverwrite:{
@@ -868,7 +868,7 @@ function startJitsi(cfg){
       TILE_VIEW_MAX_COLUMNS:7,             // 타일 한 줄에 최대 7명 (작게 많이)
       DISABLE_DOMINANT_SPEAKER_INDICATOR:true,
       DEFAULT_REMOTE_DISPLAY_NAME:"학생",
-      TOOLBAR_BUTTONS:["camera","tileview","hangup","fullscreen","settings"],
+      TOOLBAR_BUTTONS:["camera","hangup","fullscreen","settings"],
     },
     userInfo:{ displayName: me.nickname },
   };
@@ -883,6 +883,13 @@ function startJitsi(cfg){
     setTimeout(forceTileView, 800);    // Jitsi 준비 후 재적용
     setTimeout(forceTileView, 2000);
     try{ jitsiApi.isAudioMuted().then(m=>{ if(!m) jitsiApi.executeCommand("toggleAudio"); }); }catch(e){}
+  });
+  // 누가 타일뷰를 끄면(한 명만 크게 보기로 전환) 즉시 다시 타일뷰로 되돌림
+  // → 학생이 실수로 한 명만 보기로 들어가도 못 빠져나오는 일 방지
+  jitsiApi.addEventListener("tileViewChanged", (e)=>{
+    if(e && e.enabled===false){
+      setTimeout(forceTileView, 200);
+    }
   });
   // 새 참가자가 들어올 때마다 타일뷰 유지 (한 명이 크게 잡히는 것 방지)
   jitsiApi.addEventListener("participantJoined", ()=>{ setTimeout(forceTileView, 300); });

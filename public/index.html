@@ -248,7 +248,7 @@
     display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
   @media(min-width:600px){.modal{align-items:center}}
   .modal-card{background:var(--canvas);width:100%;max-width:560px;max-height:92vh;overflow-y:auto;
-    border-radius:20px 20px 0 0;padding:28px 26px 26px}
+    border-radius:20px 20px 0 0;padding:28px 26px 26px;position:relative}
   @media(min-width:600px){.modal-card{border-radius:20px}}
   .modal-card h2{font-family:var(--font-display);font-size:24px;font-weight:600;letter-spacing:-0.4px;margin:0 0 18px}
   /* 안내(사용법/패치노트) 모달 */
@@ -268,6 +268,29 @@
   .patch-item ul{margin:0;padding-left:18px}
   .patch-item li{font-size:14px;line-height:1.6;letter-spacing:-0.2px;color:var(--ink-80);margin-bottom:5px}
   .patch-item li b{color:var(--ink)}
+  /* 오목 */
+  .omok-pick-row{display:flex;justify-content:space-between;align-items:center;
+    padding:12px 14px;border:1px solid var(--hairline);border-radius:12px;margin-bottom:8px}
+  .omok-pick-row .nm{font-size:15px;letter-spacing:-0.2px}
+  .omok-status{text-align:center;font-size:15px;letter-spacing:-0.2px;color:var(--ink-80);
+    margin-bottom:12px;min-height:22px;font-weight:500}
+  .omok-board{display:grid;grid-template-columns:repeat(15,1fr);gap:0;
+    background:#e3c08a;border:2px solid #b8935a;border-radius:8px;
+    aspect-ratio:1;width:100%;max-width:420px;margin:0 auto;padding:8px}
+  .omok-cell{position:relative;aspect-ratio:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  /* 격자선 */
+  .omok-cell::before{content:"";position:absolute;left:50%;top:0;width:1px;height:100%;background:#8a6d3b;opacity:.5}
+  .omok-cell::after{content:"";position:absolute;top:50%;left:0;width:100%;height:1px;background:#8a6d3b;opacity:.5}
+  .omok-stone{position:relative;z-index:2;width:78%;height:78%;border-radius:50%;
+    box-shadow:0 1px 2px rgba(0,0,0,.4)}
+  .omok-stone.black{background:radial-gradient(circle at 35% 30%,#555,#000)}
+  .omok-stone.white{background:radial-gradient(circle at 35% 30%,#fff,#cfcfcf)}
+  .omok-stone.last{box-shadow:0 0 0 2px #d70015,0 1px 2px rgba(0,0,0,.4)}
+  .omok-info{text-align:center;font-size:13px;color:var(--ink-48);margin-top:12px;letter-spacing:-0.1px}
+  /* 안내 팝업 구석 이스터에그 버튼 */
+  .omok-egg{position:absolute;bottom:14px;right:18px;font-size:11px;color:var(--ink-48);
+    opacity:.45;cursor:pointer;letter-spacing:-0.1px;user-select:none}
+  .omok-egg:hover{opacity:.9}
   .mrow{margin-bottom:16px}
   .mrow label{display:block;font-size:12px;color:var(--ink-48);margin-bottom:6px;letter-spacing:-0.12px}
   .mrow input[type=text],.mrow input[type=password],.mrow textarea{width:100%;padding:12px 15px;
@@ -622,7 +645,15 @@
     <!-- 패치노트 -->
     <div id="guide-patch" class="guide-panel hidden">
       <div class="patch-item">
-        <div class="patch-ver">v2.0 <span class="patch-tag new">최신</span></div>
+        <div class="patch-ver">v2.1 <span class="patch-tag new">최신</span></div>
+        <ul>
+          <li><b>안내 페이지</b> 추가 — 사용법과 패치노트를 여기서 볼 수 있어요.</li>
+          <li><b>배경 업로드 제한</b> — 직접 이미지 배경 추가는 막고, 기본 배경만 쓸 수 있어요.</li>
+          <li>소소한 이스터에그 추가 🥚</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v2.0</div>
         <ul>
           <li><b>영상 시스템 전면 개편</b> — 더 안정적인 화상 연결로 바꿔, 인원이 많아도 끊김이 줄었어요.</li>
           <li><b>기기 등록제</b> — 계정당 최대 2대까지 등록되도록 했어요.</li>
@@ -649,6 +680,32 @@
         </ul>
       </div>
     </div>
+    <span class="omok-egg" onclick="openOmokPick()" title="?">⚫⚪</span>
+  </div>
+</div>
+
+<!-- 오목 상대 선택 modal -->
+<div id="omokPickModal" class="modal hidden">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 style="margin:0">⚫⚪ 오목 한 판</h2>
+      <button class="btn-cancel" style="flex:none;padding:8px 16px;font-size:14px" onclick="closeOmokPick()">닫기</button>
+    </div>
+    <p style="font-size:14px;color:var(--ink-48);margin:0 0 14px">캠스터디에 참여 중인 친구에게 대국을 신청해요.</p>
+    <div id="omokPickList"></div>
+  </div>
+</div>
+
+<!-- 오목 대국 modal -->
+<div id="omokGameModal" class="modal hidden">
+  <div class="modal-card" style="max-width:480px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0;font-size:20px">⚫⚪ 오목</h2>
+      <button class="btn-cancel" style="flex:none;padding:8px 16px;font-size:14px" onclick="omokQuit()">나가기</button>
+    </div>
+    <div id="omokStatus" class="omok-status">대국 준비 중...</div>
+    <div id="omokBoard" class="omok-board"></div>
+    <div id="omokInfo" class="omok-info"></div>
   </div>
 </div>
 
@@ -800,7 +857,7 @@ window.addEventListener("load",()=>{restoreSession();});
 
 // ===== password =====
 // ===== 안내(사용법/패치노트) =====
-const APP_VERSION="v2.0";
+const APP_VERSION="v2.1";
 function openGuide(){
   $("guideVersion").textContent=APP_VERSION;
   showGuide("usage");
@@ -812,6 +869,139 @@ function showGuide(which){
   $("gt-patch").classList.toggle("active",which==="patch");
   $("guide-usage").classList.toggle("hidden",which!=="usage");
   $("guide-patch").classList.toggle("hidden",which!=="patch");
+}
+
+// ===== 오목 이스터에그 =====
+const OMOK_N=15;
+let studyParticipants=[];           // 캠스터디 참가자 목록 [{id,studentId,nickname}]
+let omok=null;                      // 현재 대국 상태
+// omok = { opp, oppName, myColor(1=흑,2=백), turn(1/2), board[15][15], over, last }
+
+function openOmokPick(){
+  if(!inStudy){ toast("먼저 캠스터디에 참여해주세요."); return; }
+  const list=studyParticipants.filter(p=>p.id!==socket.id);
+  const wrap=$("omokPickList");
+  if(!list.length){
+    wrap.innerHTML='<div style="color:var(--ink-48);font-size:14px;text-align:center;padding:20px 0">지금 캠스터디에 다른 참여자가 없어요.</div>';
+  }else{
+    wrap.innerHTML=list.map(p=>
+      `<div class="omok-pick-row"><span class="nm">${esc(p.nickname)}</span>`+
+      `<button class="btn-pill small" onclick="omokInvite('${p.id}','${esc(p.nickname).replace(/'/g,"")}')">대국 신청</button></div>`
+    ).join("");
+  }
+  $("guideModal").classList.add("hidden");
+  $("omokPickModal").classList.remove("hidden");
+}
+function closeOmokPick(){$("omokPickModal").classList.add("hidden");}
+
+function omokInvite(toId,name){
+  socket.emit("omok-invite",{to:toId});
+  closeOmokPick();
+  toast(name+" 님에게 신청했어요. 수락을 기다리는 중...");
+  omok={opp:toId,oppName:name,myColor:1,turn:1,board:omokEmpty(),over:false,last:null,pending:true};
+}
+function omokOnInvite(from,nickname){
+  if(omok && !omok.over){ socket.emit("omok-decline",{to:from}); return; } // 이미 대국 중
+  if(confirm(`${nickname} 님이 오목 대국을 신청했어요. 받으실래요?`)){
+    socket.emit("omok-accept",{to:from});
+    // 수락자=백(후공)
+    omok={opp:from,oppName:nickname,myColor:2,turn:1,board:omokEmpty(),over:false,last:null};
+    omokStart();
+  }else{
+    socket.emit("omok-decline",{to:from});
+  }
+}
+function omokOnAccept(from,nickname){
+  if(!omok || omok.opp!==from) return;
+  omok.pending=false;
+  omok.oppName=nickname||omok.oppName;
+  omokStart(); // 신청자=흑(선공)
+  toast("대국이 시작됐어요! 흑돌(선공)이에요.");
+}
+function omokOnDecline(from){
+  if(omok && omok.opp===from){ omok=null; toast("상대가 신청을 거절했어요."); }
+}
+function omokOnMove(from,x,y){
+  if(!omok || omok.opp!==from || omok.over) return;
+  const color=omok.myColor===1?2:1; // 상대 색
+  omokPlace(x,y,color);
+}
+function omokOnResign(from){
+  if(omok && omok.opp===from && !omok.over){
+    omok.over=true;
+    $("omokStatus").textContent="상대가 나갔어요. 당신의 승리! 🎉";
+    omokRender();
+  }
+}
+
+function omokEmpty(){ return Array.from({length:OMOK_N},()=>Array(OMOK_N).fill(0)); }
+function omokStart(){
+  $("omokGameModal").classList.remove("hidden");
+  omokRender();
+  omokUpdateStatus();
+}
+function omokUpdateStatus(){
+  if(!omok) return;
+  if(omok.over) return;
+  const myTurn=omok.turn===omok.myColor;
+  const myStone=omok.myColor===1?"흑":"백";
+  $("omokStatus").textContent=myTurn?`내 차례예요 (${myStone}돌)`:`${omok.oppName} 님 차례...`;
+  $("omokInfo").textContent=`나: ${myStone}돌 · 5개를 연속으로 놓으면 승리`;
+}
+function omokRender(){
+  const b=$("omokBoard");
+  b.innerHTML="";
+  for(let y=0;y<OMOK_N;y++){
+    for(let x=0;x<OMOK_N;x++){
+      const cell=document.createElement("div");
+      cell.className="omok-cell";
+      const v=omok.board[y][x];
+      if(v){
+        const s=document.createElement("div");
+        s.className="omok-stone "+(v===1?"black":"white");
+        if(omok.last&&omok.last.x===x&&omok.last.y===y) s.classList.add("last");
+        cell.appendChild(s);
+      }
+      cell.onclick=()=>omokTry(x,y);
+      b.appendChild(cell);
+    }
+  }
+}
+function omokTry(x,y){
+  if(!omok||omok.over) return;
+  if(omok.turn!==omok.myColor){ toast("상대 차례예요."); return; }
+  if(omok.board[y][x]!==0) return;
+  omokPlace(x,y,omok.myColor);
+  socket.emit("omok-move",{to:omok.opp,x,y});
+}
+function omokPlace(x,y,color){
+  if(omok.board[y][x]!==0) return;
+  omok.board[y][x]=color;
+  omok.last={x,y};
+  omok.turn=color===1?2:1;
+  omokRender();
+  if(omokWin(x,y,color)){
+    omok.over=true;
+    const iWon=color===omok.myColor;
+    $("omokStatus").textContent=iWon?"이겼어요! 🎉":"졌어요... 😢";
+  }else{
+    omokUpdateStatus();
+  }
+}
+function omokWin(x,y,c){
+  const dirs=[[1,0],[0,1],[1,1],[1,-1]];
+  for(const [dx,dy] of dirs){
+    let cnt=1;
+    for(let s=1;s<5;s++){const nx=x+dx*s,ny=y+dy*s;if(nx<0||ny<0||nx>=OMOK_N||ny>=OMOK_N||omok.board[ny][nx]!==c)break;cnt++;}
+    for(let s=1;s<5;s++){const nx=x-dx*s,ny=y-dy*s;if(nx<0||ny<0||nx>=OMOK_N||ny>=OMOK_N||omok.board[ny][nx]!==c)break;cnt++;}
+    if(cnt>=5) return true;
+  }
+  return false;
+}
+function omokQuit(){
+  if(omok && !omok.over){ socket.emit("omok-resign",{to:omok.opp}); }
+  omok=null;
+  $("omokGameModal").classList.add("hidden");
 }
 
 function openPwModal(){$("pwModal").classList.remove("hidden");$("pwMsg").textContent="";}
@@ -863,8 +1053,16 @@ function connectSocket(){
   socket=io({auth:{token}});
   socket.on("connect_error",e=>toast("연결 오류: "+e.message));
   socket.on("participant-count",n=>{$("studyCount").textContent=n;});
+  socket.on("participant-list",list=>{ studyParticipants=list||[]; });
   socket.on("chat",m=>addChat(m));
   socket.on("chat-deleted",({id})=>{const el=document.querySelector('[data-cid="'+id+'"]');if(el)el.remove();});
+
+  // ── 오목 신호 ──
+  socket.on("omok-invite",({from,nickname})=>omokOnInvite(from,nickname));
+  socket.on("omok-accept",({from,nickname})=>omokOnAccept(from,nickname));
+  socket.on("omok-decline",({from})=>omokOnDecline(from));
+  socket.on("omok-move",({from,x,y})=>omokOnMove(from,x,y));
+  socket.on("omok-resign",({from})=>omokOnResign(from));
 
   // 다른 기기에서 같은 학번으로 입장 → 이 기기는 채팅방에서 나감
   socket.on("force-leave-study",({reason})=>{

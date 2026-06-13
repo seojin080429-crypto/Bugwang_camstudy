@@ -93,6 +93,14 @@
   .ctrl.leave{background:var(--ink);color:#fff}
   .ctrl:disabled{opacity:.35;cursor:default}
 
+  /* 캠스터디 화면/채팅 서브탭 (모바일 전용) */
+  .study-subtabs{display:none;background:var(--parchment);border-radius:9999px;padding:3px;margin-bottom:14px}
+  .study-subtabs .sub-t{flex:1;font-size:15px;letter-spacing:-0.2px;color:var(--ink-80);
+    border-radius:9999px;padding:10px 0;transition:.15s;display:flex;align-items:center;justify-content:center;gap:6px}
+  .study-subtabs .sub-t.active{background:var(--canvas);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .chat-badge{min-width:18px;height:18px;padding:0 5px;border-radius:9999px;background:var(--primary);
+    color:#fff;font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+
   .study-grid{display:grid;grid-template-columns:1fr 340px;gap:20px}
   @media(max-width:860px){.study-grid{grid-template-columns:1fr}}
 
@@ -242,6 +250,108 @@
   .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
     background:var(--ink);color:#fff;padding:12px 22px;border-radius:9999px;
     z-index:200;font-size:14px;letter-spacing:-0.224px;box-shadow:var(--shadow-product)}
+
+  /* ===== 하단 탭바 (모바일 전용, 기본 숨김) ===== */
+  .tabbar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:60;
+    background:rgba(255,255,255,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border-top:1px solid var(--divider-soft);
+    padding-bottom:env(safe-area-inset-bottom)}
+  .tabbar-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:9px 0 7px;color:var(--ink-48);transition:color .15s}
+  .tabbar-btn svg{width:25px;height:25px}
+  .tabbar-btn span{font-size:11px;letter-spacing:-0.1px;font-weight:500}
+  .tabbar-btn.active{color:var(--primary)}
+
+  /* ============================================================
+     모바일 (≤640px) — 앱처럼 동작하도록 종합 개선
+     ============================================================ */
+  @media(max-width:640px){
+    body{font-size:16px}
+
+    /* 상단 네비: 탭은 하단으로 내리고, 브랜드+로그아웃만 */
+    .gnav{height:52px;padding:0 16px}
+    .gnav .seg{display:none}              /* 상단 탭 숨김 → 하단 탭바 사용 */
+    .gnav .brand{font-size:19px;margin-right:auto}
+    .gnav .btn-util{padding:8px 12px;font-size:13px}
+
+    /* 하단 탭바 표시 */
+    .tabbar{display:flex}
+
+    /* 본문: 하단 탭바 높이만큼 여백 확보 */
+    .wrap{padding:18px 16px calc(80px + env(safe-area-inset-bottom))}
+
+    /* ── 캠스터디 ── */
+    .study-head{flex-direction:column;align-items:stretch;gap:12px;margin-bottom:16px}
+    .count-pill{justify-content:center;font-size:16px;padding:11px 20px}
+    .count-pill b{font-size:20px}
+    /* 컨트롤 버튼: 큼직하게 2열 그리드 */
+    .study-ctrls{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-left:0}
+    .study-ctrls .ctrl{padding:13px 10px;font-size:15px;border-radius:14px;
+      display:flex;align-items:center;justify-content:center}
+    .study-ctrls .ctrl.join{grid-column:1 / -1}   /* 참여 버튼은 가로 전체 */
+
+    .study-grid{gap:14px}
+    .study-subtabs{display:flex}
+    /* 모바일: 화면/채팅 중 하나만 표시 */
+    .study-grid.show-video #chatPanel{display:none}
+    .study-grid.show-chat #videoArea{display:none}
+    .study-grid.show-chat #chatPanel{height:calc(100vh - 320px);min-height:380px}
+    .video-area{padding:12px;border-radius:14px}
+    /* 비디오 타일: 2열 고정 */
+    .video-tiles{grid-template-columns:1fr 1fr;gap:9px}
+    .tile{border-radius:10px}
+    .study-empty{padding:32px 12px;font-size:15px}
+
+    /* 채팅: 화면에 맞는 높이로 (고정 540px 제거) */
+    .chat{height:58vh;min-height:340px;border-radius:14px}
+    .chat .ch-head{padding:12px 16px;font-size:16px}
+    .chat .ch-input{padding:10px}
+    .chat .ch-input input{font-size:16px}  /* iOS 확대 방지 위해 16px */
+
+    .cam-notice{font-size:12.5px;padding:10px 12px}
+
+    /* ── 질문방 ── */
+    .qna-head h2{font-size:30px}
+    .qna-head p{font-size:15px}
+    .qna-bar{gap:8px}
+    .search-box{order:1;flex:1 1 100%;min-width:0}
+    .sort-seg{order:2;flex:1 1 auto;justify-content:center}
+    .sort-seg button{flex:1;padding:8px 10px}
+    .qna-bar > .btn-pill{order:3;flex:1 1 100%}  /* 질문 올리기 버튼 가로 전체 */
+    /* 질문 카드: 1열로 크게 */
+    .q-grid{grid-template-columns:1fr;gap:14px}
+    .q-card .thumb{height:180px}
+
+    /* ── 입력칸 iOS 확대 방지 ── */
+    .field input,.mrow input,.mrow textarea,.ans-input input,
+    .search-box input,#askSubject{font-size:16px}
+
+    /* ── 모달: 하단 시트 스타일 그대로, 좀 더 여유 ── */
+    .modal-card{padding:24px 20px calc(24px + env(safe-area-inset-bottom))}
+    .modal-card h2{font-size:22px}
+
+    /* ── 관리자 테이블: 카드형으로 (이미 1열이지만 터치 영역 키움) ── */
+    .aact{padding:9px 14px;font-size:13px}
+
+    /* 로그인 카드 */
+    .login-card{padding:32px 24px}
+    .login-card h1{font-size:30px}
+  }
+
+  /* 아주 작은 화면 (≤360px) */
+  @media(max-width:360px){
+    .study-ctrls{grid-template-columns:1fr}
+    .study-ctrls .ctrl.join{grid-column:auto}
+    .video-tiles{grid-template-columns:1fr}
+  }
+
+  /* 모바일 타일 정리: '카메라 꺼짐' 텍스트 숨기고 아바타만 */
+  @media(max-width:640px){
+    .tile .nocam span{display:none}
+    .tile .av{width:46px;height:46px;font-size:18px}
+    .tile .nm{font-size:11px;padding:2px 8px;left:8px;bottom:8px;max-width:80%;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  }
 </style>
 </head>
 <body>
@@ -290,8 +400,12 @@
         <button class="ctrl" id="btnPrivacy" onclick="openPrivacy()" disabled>화면 가리기</button>
       </div>
     </div>
-    <div class="study-grid">
-      <div class="video-area">
+    <div class="study-subtabs" id="studySubtabs">
+      <button class="sub-t active" id="subt-video" onclick="showStudyPanel('video')">화면</button>
+      <button class="sub-t" id="subt-chat" onclick="showStudyPanel('chat')">채팅 <span class="chat-badge hidden" id="chatBadge"></span></button>
+    </div>
+    <div class="study-grid show-video" id="studyGrid">
+      <div class="video-area" id="videoArea">
         <div class="cam-notice hidden" id="camNotice">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.5v4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11" r="0.8" fill="currentColor"/></svg>
           <span>다른 사람의 카메라가 안 보이면, <b>카메라를 껐다 켜주세요.</b></span>
@@ -302,7 +416,7 @@
           <small>마이크는 꺼져 있고 채팅으로만 대화해요 · 카메라 없이도 참여 가능</small>
         </div>
       </div>
-      <div class="chat">
+      <div class="chat" id="chatPanel">
         <div class="ch-head">채팅</div>
         <div class="ch-log" id="chatLog"></div>
         <div class="ch-input">
@@ -349,6 +463,22 @@
     </div>
     <div class="admin-table" id="adminTable"></div>
   </div>
+
+  <!-- 모바일 하단 탭바 -->
+  <nav class="tabbar" id="tabbar">
+    <button class="tabbar-btn active" id="tb-study" onclick="showTab('study')">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="12" rx="2.5" stroke="currentColor" stroke-width="1.7"/><circle cx="8" cy="12" r="2" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>캠스터디</span>
+    </button>
+    <button class="tabbar-btn" id="tb-qna" onclick="showTab('qna')">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M5 5h14a2 2 0 012 2v8a2 2 0 01-2 2H9l-4 3V7a2 2 0 012-2z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      <span>질문방</span>
+    </button>
+    <button class="tabbar-btn hidden" id="tb-admin" onclick="showTab('admin')">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M5 19c0-3.3 3.1-5.5 7-5.5s7 2.2 7 5.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span>관리자</span>
+    </button>
+  </nav>
 </div>
 
 <!-- rename modal -->
@@ -472,7 +602,17 @@ const $=id=>document.getElementById(id);
 function api(p,o={}){
   o.headers=Object.assign({"Content-Type":"application/json"},o.headers||{});
   if(token)o.headers.Authorization="Bearer "+token;
-  return fetch(p,o).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"요청 실패");return d;});
+  return fetch(p,o).then(async r=>{
+    const d=await r.json().catch(()=>({}));
+    if(r.status===401){
+      // 세션 만료 → 저장된 로그인 정보 정리 후 로그인 화면으로
+      clearSession();
+      if(me){toast("세션이 만료됐어요. 다시 로그인해주세요.");setTimeout(()=>logout(),300);}
+      throw new Error(d.error||"세션이 만료되었습니다.");
+    }
+    if(!r.ok)throw new Error(d.error||"요청 실패");
+    return d;
+  });
 }
 function toast(t){const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2200);}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -487,20 +627,46 @@ async function doLogin(){
   try{
     const d=await api("/api/login",{method:"POST",body:JSON.stringify({studentId,password})});
     token=d.token;me={studentId:d.studentId,nickname:d.nickname,role:d.role||"student"};
-    $("screen-login").classList.add("hidden");$("screen-main").classList.remove("hidden");
-    const roleLabel=me.role==="owner"?" · 운영자":(me.role==="admin"?" · 관리자":"");
-    $("navWho").textContent=me.nickname+roleLabel;
-    $("tab-admin").classList.toggle("hidden", !isStaff());
-    connectSocket();loadQuestions();
+    saveSession(); // 새로고침 대비 저장
+    enterApp();
     if(d.mustChange){toast("초기 비밀번호 사용 중 · 변경을 권장해요");openPwModal();}
   }catch(e){msg.className="msg err";msg.textContent=e.message;}
 }
+// 로그인 성공 후 앱 화면 진입 (로그인/복원 공통)
+function enterApp(){
+  $("screen-login").classList.add("hidden");$("screen-main").classList.remove("hidden");
+  const roleLabel=me.role==="owner"?" · 운영자":(me.role==="admin"?" · 관리자":"");
+  $("navWho").textContent=me.nickname+roleLabel;
+  $("tab-admin").classList.toggle("hidden", !isStaff());
+  $("tb-admin").classList.toggle("hidden", !isStaff());
+  connectSocket();loadQuestions();
+}
+// 세션 저장/복원 (새로고침해도 로그인 유지)
+function saveSession(){
+  try{ localStorage.setItem("camstudy_session", JSON.stringify({token,me})); }catch(e){}
+}
+function clearSession(){
+  try{ localStorage.removeItem("camstudy_session"); }catch(e){}
+}
+function restoreSession(){
+  try{
+    const raw=localStorage.getItem("camstudy_session");
+    if(!raw)return false;
+    const s=JSON.parse(raw);
+    if(!s.token||!s.me)return false;
+    token=s.token;me=s.me;
+    enterApp();
+    return true;
+  }catch(e){return false;}
+}
 function logout(){
   if(inStudy)leaveStudy();if(socket)socket.disconnect();
-  token=null;me=null;
+  token=null;me=null;clearSession();
   $("screen-main").classList.add("hidden");$("screen-login").classList.remove("hidden");$("loginPw").value="";
 }
 $("loginPw").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+// 페이지 로드 시 저장된 세션 복원 시도
+window.addEventListener("load",()=>{restoreSession();});
 
 // ===== password =====
 function openPwModal(){$("pwModal").classList.remove("hidden");$("pwMsg").textContent="";}
@@ -514,6 +680,22 @@ async function changePw(){
 }
 
 // ===== tabs =====
+// 캠스터디 화면/채팅 패널 전환 (모바일)
+let unreadChat=0;
+function showStudyPanel(which){
+  const grid=$("studyGrid");
+  grid.classList.toggle("show-video",which==="video");
+  grid.classList.toggle("show-chat",which==="chat");
+  $("subt-video").classList.toggle("active",which==="video");
+  $("subt-chat").classList.toggle("active",which==="chat");
+  if(which==="chat"){
+    unreadChat=0;
+    $("chatBadge").classList.add("hidden");
+    // 채팅 보일 때 맨 아래로 스크롤
+    const log=$("chatLog");if(log)log.scrollTop=log.scrollHeight;
+  }
+}
+
 function showTab(t){
   $("tab-study").classList.toggle("active",t==="study");
   $("tab-qna").classList.toggle("active",t==="qna");
@@ -521,8 +703,13 @@ function showTab(t){
   $("view-study").classList.toggle("hidden",t!=="study");
   $("view-qna").classList.toggle("hidden",t!=="qna");
   $("view-admin").classList.toggle("hidden",t!=="admin");
+  // 모바일 하단 탭바 동기화
+  $("tb-study").classList.toggle("active",t==="study");
+  $("tb-qna").classList.toggle("active",t==="qna");
+  $("tb-admin").classList.toggle("active",t==="admin");
   if(t==="qna")loadQuestions();
   if(t==="admin")loadAdminUsers();
+  window.scrollTo(0,0);
 }
 
 // ===== socket + study =====
@@ -564,6 +751,14 @@ function connectSocket(){
   socket.on("webrtc-ice",async({from,candidate})=>{const pc=peers[from];if(pc&&candidate)try{await pc.addIceCandidate(candidate);}catch(e){}});
   socket.on("chat",m=>addChat(m));
   socket.on("chat-deleted",({id})=>{const el=document.querySelector('[data-cid="'+id+'"]');if(el)el.remove();});
+
+  // 다른 기기에서 같은 학번으로 캠스터디 입장 → 이 기기는 방에서 나가짐
+  socket.on("force-leave-study",({reason})=>{
+    if(inStudy){
+      leaveStudy();
+      toast(reason||"다른 기기에서 입장하여 캠스터디에서 나갔어요.");
+    }
+  });
 
   // ── 재연결 처리 ──────────────────────────────────────────
   // "io server disconnect" = 서버가 명시적으로 끊음 → 수동 재연결 필요
@@ -733,6 +928,12 @@ function addChat(m){
     d.innerHTML=`<span class="who">${esc(m.nickname)}</span><span class="ctxt">${esc(m.text)}</span>${delBtn}`;
   }
   log.appendChild(d);log.scrollTop=log.scrollHeight;
+  // 모바일에서 채팅 패널이 안 보일 때 새 메시지 → 배지 표시
+  if(!m.system && $("studyGrid") && $("studyGrid").classList.contains("show-video")){
+    unreadChat++;
+    const badge=$("chatBadge");
+    if(badge){badge.textContent=unreadChat>99?"99+":unreadChat;badge.classList.remove("hidden");}
+  }
 }
 function deleteChat(id){socket.emit("delete-chat",{id});}
 

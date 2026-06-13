@@ -170,15 +170,27 @@ app.get("/api/questions/:id", auth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: "서버 오류" }); }
 });
 
-// --- 답변 작성 ---
-app.post("/api/questions/:id/answers", auth, async (req, res) => {
+// --- 답변 작성 (사진 첨부 가능) ---
+app.post("/api/questions/:id/answers", auth, upload.single("image"), async (req, res) => {
   try {
     const { body } = req.body || {};
-    if (!body) return res.status(400).json({ error: "답변 내용을 입력하세요." });
     const qid = Number(req.params.id);
+    // 내용이나 사진 중 하나는 있어야 함
+    if (!body && !req.file) return res.status(400).json({ error: "답변 내용 또는 사진을 넣어주세요." });
     const { data: q } = await supabase.from("questions").select("id").eq("id", qid).maybeSingle();
     if (!q) return res.status(404).json({ error: "질문을 찾을 수 없습니다." });
-    const { data, error } = await supabase.from("answers").insert({ question_id: qid, student_id: req.user.studentId, body, created_at: new Date().toISOString() }).select().single();
+
+    let imagePath = null;
+    if (req.file) {
+      const ext = (req.file.originalname.split(".").pop() || "jpg").toLowerCase();
+      const fileName = `a_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from(PHOTO_BUCKET).upload(fileName, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(fileName);
+      imagePath = pub.publicUrl;
+    }
+
+    const { data, error } = await supabase.from("answers").insert({ question_id: qid, student_id: req.user.studentId, body: body || "", image_path: imagePath, created_at: new Date().toISOString() }).select().single();
     if (error) throw error;
     res.json({ id: data.id });
   } catch (e) { console.error(e); res.status(500).json({ error: "답변 등록에 실패했습니다." }); }
@@ -211,6 +223,11 @@ app.delete("/api/answers/:id", auth, async (req, res) => {
     if (!a) return res.status(404).json({ error: "답변을 찾을 수 없습니다." });
     if (a.student_id !== req.user.studentId && !isStaffRole(req.user.role)) {
       return res.status(403).json({ error: "본인이 쓴 답변만 삭제할 수 있습니다." });
+    }
+    // 사진이 있으면 Storage에서도 삭제
+    if (a.image_path) {
+      const fileName = a.image_path.split("/").pop();
+      if (fileName) await supabase.storage.from(PHOTO_BUCKET).remove([fileName]);
     }
     await supabase.from("answers").delete().eq("id", aid);
     res.json({ ok: true });

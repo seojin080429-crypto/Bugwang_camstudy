@@ -501,6 +501,33 @@ io.on("connection", (socket) => {
     io.to(ROOM).emit("chat", { system: true, text: String(text).slice(0, 200), ts: Date.now() });
   });
 
+  // ── 오목 이스터에그: 신호를 상대에게 중계 (게임 로직은 클라이언트) ──
+  // 오목 신청
+  socket.on("omok-invite", ({ to }) => {
+    if (!to) return;
+    io.to(to).emit("omok-invite", { from: socket.id, nickname: socket.user.nickname || socket.user.studentId });
+  });
+  // 신청 수락 (수락자가 후공=백, 신청자가 선공=흑)
+  socket.on("omok-accept", ({ to }) => {
+    if (!to) return;
+    io.to(to).emit("omok-accept", { from: socket.id, nickname: socket.user.nickname || socket.user.studentId });
+  });
+  // 신청 거절
+  socket.on("omok-decline", ({ to }) => {
+    if (!to) return;
+    io.to(to).emit("omok-decline", { from: socket.id });
+  });
+  // 돌 두기
+  socket.on("omok-move", ({ to, x, y }) => {
+    if (!to) return;
+    io.to(to).emit("omok-move", { from: socket.id, x, y });
+  });
+  // 항복/나가기
+  socket.on("omok-resign", ({ to }) => {
+    if (!to) return;
+    io.to(to).emit("omok-resign", { from: socket.id });
+  });
+
   function leave() {
     const p = participants.get(socket.id);
     if (p) {

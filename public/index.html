@@ -438,6 +438,7 @@
       <div class="count-pill"><span class="live-dot"></span>현재 <b id="studyCount">0</b>명 참여중</div>
       <div class="study-ctrls">
         <button class="ctrl join" id="btnJoin" onclick="toggleStudy()">참여하기</button>
+        <button class="ctrl" id="btnFlipCam" onclick="flipJitsiCamera()" disabled>카메라 전환</button>
         <button class="ctrl" id="btnPrivacy" onclick="openPrivacy()" disabled>집중 모드</button>
       </div>
     </div>
@@ -905,6 +906,26 @@ function startJitsi(cfg){
       }catch(err){}
     });
   }
+  // 입장 완료되면 카메라 전환 버튼 활성화
+  jitsiApi.addEventListener("videoConferenceJoined", ()=>{ $("btnFlipCam").disabled=false; });
+}
+
+// ===== 카메라 전환 (전면 ↔ 후면) =====
+// 기기의 카메라 목록을 받아 현재와 다른 카메라로 전환
+let _camList=[], _camIdx=0;
+async function flipJitsiCamera(){
+  if(!jitsiApi){ return; }
+  try{
+    const devices=await jitsiApi.getAvailableDevices();
+    const cams=(devices && devices.videoInput) ? devices.videoInput : [];
+    if(cams.length<2){ toast("전환할 카메라가 없어요."); return; }
+    _camList=cams;
+    // 현재 사용 중인 카메라 다음 것으로
+    _camIdx=(_camIdx+1)%cams.length;
+    const next=cams[_camIdx];
+    jitsiApi.setVideoInputDevice(next.label, next.deviceId);
+    toast("카메라를 전환했어요.");
+  }catch(e){ toast("카메라 전환에 실패했어요. 설정에서 바꿔주세요."); }
 }
 
 function leaveStudy(){
@@ -914,6 +935,7 @@ function leaveStudy(){
   $("jitsiContainer").classList.remove("active");
   $("jitsiContainer").innerHTML="";
   $("btnJoin").textContent="참여하기";$("btnJoin").classList.add("join");$("btnJoin").classList.remove("leave");
+  $("btnFlipCam").disabled=true;
   $("btnPrivacy").disabled=true;$("chatInput").disabled=true;$("chatSend").disabled=true;
   $("studyEmpty").style.display="block";
   releaseWakeLock();

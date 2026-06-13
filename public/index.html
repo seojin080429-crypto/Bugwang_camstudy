@@ -601,11 +601,24 @@ async function toggleCam(){
       $("btnFlip").disabled=false;
       const v=$("video-me");if(v){v.srcObject=localStream;v.muted=true;}
       updateTileCam("me",true);
-      for(const id in peers){localStream.getTracks().forEach(tr=>peers[id].addTrack(tr,localStream));await renegotiate(id);}
+      // 각 peer에 트랙 추가: 이미 sender 있으면 replaceTrack, 없으면 addTrack
+      const track=localStream.getVideoTracks()[0];
+      for(const id in peers){
+        const pc=peers[id];
+        const sender=pc.getSenders().find(s=>s.track&&s.track.kind==="video");
+        if(sender){ await sender.replaceTrack(track); }
+        else{ pc.addTrack(track,localStream); await renegotiate(id); }
+      }
       socket.emit("cam-state",{camOn:true});
     }catch(e){toast("카메라를 사용할 수 없어요");}
   }else{
-    camOn=false;if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
+    camOn=false;
+    // peer에서 video sender 트랙 null로 교체 (연결은 유지)
+    for(const id in peers){
+      const sender=peers[id].getSenders().find(s=>s.track&&s.track.kind==="video");
+      if(sender) await sender.replaceTrack(null);
+    }
+    if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
     $("btnCam").textContent="카메라 켜기";$("btnCam").classList.remove("on");
     $("btnFlip").disabled=true;
     const v=$("video-me");if(v)v.srcObject=null;updateTileCam("me",false);
@@ -641,12 +654,14 @@ function createPeer(id,initiator){
   if(localStream)localStream.getTracks().forEach(tr=>pc.addTrack(tr,localStream));
   pc.onicecandidate=e=>{if(e.candidate)socket.emit("webrtc-ice",{to:id,candidate:e.candidate});};
   pc.ontrack=e=>{
-    // 타일이 아직 없을 수 있으므로 ensureTile 먼저
     const p=participants_ui[id];
     if(!$("tile-"+id)) ensureTile(id, p?p.nickname:id, false, false);
     const v=$("video-"+id);
-    if(v){
-      v.srcObject=e.streams[0];
+    if(!v) return;
+    const stream=e.streams[0];
+    // 트랙이 실제로 있을 때만 영상 표시
+    if(stream && stream.getVideoTracks().length>0 && stream.getVideoTracks()[0].readyState!=="ended"){
+      v.srcObject=stream;
       updateTileCam(id,true);
       v.play().catch(()=>{});
     }

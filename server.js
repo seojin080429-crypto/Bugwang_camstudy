@@ -379,6 +379,42 @@ io.on("connection", (socket) => {
     io.to(ROOM).emit("chat-deleted", { id });
   });
 
+  // ── 관리자: 특정 참가자 카메라 강제 끄기 ──
+  socket.on("admin-mute-cam", ({ targetId }) => {
+    if (!isStaffRole(socket.user.role) || !targetId) return;
+    const target = participants.get(targetId);
+    if (!target) return;
+    // 대상 본인에게 카메라 끄라고 지시
+    io.to(targetId).emit("force-cam-off", { by: socket.user.nickname || socket.user.studentId });
+    // 참가자 상태도 즉시 반영 + 모두에게 알림
+    target.camOn = false;
+    io.to(ROOM).emit("peer-cam-state", { id: targetId, camOn: false });
+    io.to(ROOM).emit("chat", { system: true, text: `${target.nickname} 님의 카메라가 관리자에 의해 꺼졌습니다.`, ts: Date.now() });
+    broadcastCount();
+  });
+
+  // ── 관리자: 특정 참가자를 캠스터디에서 추방 ──
+  socket.on("admin-kick-study", ({ targetId }) => {
+    if (!isStaffRole(socket.user.role) || !targetId) return;
+    const target = participants.get(targetId);
+    if (!target) return;
+    // 운영자는 추방 불가
+    const targetSocket = io.sockets.sockets.get(targetId);
+    if (targetSocket && OWNER_IDS.includes(targetSocket.user.studentId)) {
+      io.to(socket.id).emit("admin-action-denied", { reason: "운영자는 추방할 수 없습니다." });
+      return;
+    }
+    // 대상에게 추방 통지 후 방에서 제거
+    if (targetSocket) {
+      targetSocket.emit("kicked-from-study", { by: socket.user.nickname || socket.user.studentId });
+      targetSocket.leave(ROOM);
+    }
+    participants.delete(targetId);
+    socket.to(ROOM).emit("user-left", { id: targetId });
+    io.to(ROOM).emit("chat", { system: true, text: `${target.nickname} 님이 관리자에 의해 캠스터디에서 내보내졌습니다.`, ts: Date.now() });
+    broadcastCount();
+  });
+
   function leave() {
     const p = participants.get(socket.id);
     if (p) {

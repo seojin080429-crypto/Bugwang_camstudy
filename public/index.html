@@ -540,14 +540,19 @@ function connectSocket(){
   socket.on("chat-deleted",({id})=>{const el=document.querySelector('[data-cid="'+id+'"]');if(el)el.remove();});
 
   // ── 재연결 처리 ──────────────────────────────────────────
-  // 소켓이 끊기면 disconnect 기록, 재연결(connect)되면 방 재입장
-  socket.on("disconnect", ()=>{
-    socket._wasInStudy = inStudy;
+  // "io server disconnect" = 서버가 명시적으로 끊음 → 수동 재연결 필요
+  // 그 외(transport close, ping timeout 등) = Socket.IO가 자동 재연결하므로 개입 X
+  socket.on("disconnect", (reason)=>{
+    // 자동 재연결이 안 되는 경우에만 플래그 세팅
+    if(reason === "io server disconnect"){
+      socket._wasInStudy = inStudy;
+    }
+    // 나머지는 Socket.IO가 알아서 재연결 → connect 이벤트로 처리됨
   });
   socket.on("connect", ()=>{
-    if(!socket._wasInStudy) return; // 원래 참여 안 했거나 첫 연결이면 무시
+    // _wasInStudy가 true일 때만(서버가 강제 끊었다가 재연결) 재입장
+    if(!socket._wasInStudy) return;
     socket._wasInStudy = false;
-    // peer/tile 정리 후 재입장
     Object.keys(peers).forEach(removePeer);
     Object.keys(participants_ui).forEach(k=>delete participants_ui[k]);
     $("videoTiles").innerHTML="";
@@ -561,16 +566,6 @@ function connectSocket(){
     toast("연결이 복구됐어요. 카메라를 다시 켜주세요.");
   });
 }
-
-// 백그라운드→포그라운드 복귀 시 소켓 상태 체크
-document.addEventListener("visibilitychange", ()=>{
-  if(document.visibilityState!=="visible") return;
-  if(!socket || !token) return;
-  // 소켓이 끊긴 상태라면 강제 재연결
-  if(!socket.connected){
-    socket.connect();
-  }
-});
 
 function toggleStudy(){inStudy?leaveStudy():joinStudy();}
 function joinStudy(){

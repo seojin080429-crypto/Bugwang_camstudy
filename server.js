@@ -23,6 +23,8 @@ const JAAS_API_KEY = process.env.JAAS_API_KEY || "";
 // 개인키는 줄바꿈이 \n 으로 들어올 수 있어 복원
 const JAAS_PRIVATE_KEY = (process.env.JAAS_PRIVATE_KEY || "").replace(/\\n/g, "\n");
 const MAX_DEVICES_PER_USER = parseInt(process.env.MAX_DEVICES_PER_USER || "2", 10);
+// JaaS 무료 플랜 MAU(기기 기준) 한도 — 현황 표시용
+const JAAS_MAU_LIMIT = parseInt(process.env.JAAS_MAU_LIMIT || "25", 10);
 const JAAS_ROOM = "main-camstudy"; // 모두 같은 방 사용
 
 // ---- 권한 체계 ----
@@ -348,6 +350,112 @@ app.get("/api/study/my-devices", auth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: "기기 목록을 불러오지 못했습니다." }); }
 });
 
+// ============================================================
+// 출석 / 공부시간 / 랭킹
+// ============================================================
+
+// 한국 시간(KST) 기준 날짜/주/월 경계 계산
+function kstNow() { return new Date(Date.now() + 9 * 3600 * 1000); }
+function kstWeekStart() {
+  // 이번 주 월요일 0시(KST)의 UTC 시각
+  const k = kstNow();
+  const day = (k.getUTCDay() + 6) % 7; // 월=0
+  const monday = new Date(Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate() - day, 0, 0, 0));
+  return new Date(monday.getTime() - 9 * 3600 * 1000); // KST→UTC
+}
+function kstMonthStart() {
+  const k = kstNow();
+  const first = new Date(Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), 1, 0, 0, 0));
+  return new Date(first.getTime() - 9 * 3600 * 1000);
+}
+
+// 출석 시작 (이미 진행 중이면 그걸 반환)
+app.post("/api/attend/start", auth, async (req, res) => {
+  try {
+    const sid = req.user.studentId;
+    // 진행 중인 세션이 있으면 재사용 (중복 방지)
+    const { data: act } = await supabase.from("study_sessions")
+      .select("*").eq("student_id", sid).eq("active", true).order("started_at", { ascending: false }).limit(1).maybeSingle();
+    if (act) return res.json({ ok: true, sessionId: act.id, startedAt: act.started_at, resumed: true });
+    const { data, error } = await supabase.from("study_sessions").insert({
+      student_id: sid, nickname: req.user.nickname || sid,
+      started_at: new Date().toISOString(), minutes: 0, active: true,
+    }).select().single();
+    if (error) throw error;
+    res.json({ ok: true, sessionId: data.id, startedAt: data.started_at });
+  } catch (e) { console.error("attend/start:", e); res.status(500).json({ error: "출석 처리에 실패했습니다." }); }
+});
+
+// 진행 중 갱신 (heartbeat) — 클라이언트가 1분마다 호출, 닫혀도 시간 보존
+app.post("/api/attend/heartbeat", auth, async (req, res) => {
+  try {
+    const sid = req.user.studentId;
+    const { data: act } = await supabase.from("study_sessions")
+      .select("*").eq("student_id", sid).eq("active", true).order("started_at", { ascending: false }).limit(1).maybeSingle();
+    if (!act) return res.json({ ok: false, active: false });
+    const mins = Math.max(0, Math.floor((Date.now() - new Date(act.started_at).getTime()) / 60000));
+    await supabase.from("study_sessions").update({ minutes: mins }).eq("id", act.id);
+    res.json({ ok: true, minutes: mins });
+  } catch (e) { console.error("attend/heartbeat:", e); res.status(500).json({ error: "갱신 실패" }); }
+});
+
+// 출석 종료
+app.post("/api/attend/stop", auth, async (req, res) => {
+  try {
+    const sid = req.user.studentId;
+    const { data: act } = await supabase.from("study_sessions")
+      .select("*").eq("student_id", sid).eq("active", true).order("started_at", { ascending: false }).limit(1).maybeSingle();
+    if (!act) return res.json({ ok: true, minutes: 0 });
+    const mins = Math.max(0, Math.floor((Date.now() - new Date(act.started_at).getTime()) / 60000));
+    await supabase.from("study_sessions").update({
+      minutes: mins, ended_at: new Date().toISOString(), active: false,
+    }).eq("id", act.id);
+    res.json({ ok: true, minutes: mins });
+  } catch (e) { console.error("attend/stop:", e); res.status(500).json({ error: "종료 실패" }); }
+});
+
+// 내 출석 상태
+app.get("/api/attend/status", auth, async (req, res) => {
+  try {
+    const sid = req.user.studentId;
+    const { data: act } = await supabase.from("study_sessions")
+      .select("*").eq("student_id", sid).eq("active", true).order("started_at", { ascending: false }).limit(1).maybeSingle();
+    if (!act) return res.json({ active: false });
+    const mins = Math.max(0, Math.floor((Date.now() - new Date(act.started_at).getTime()) / 60000));
+    res.json({ active: true, startedAt: act.started_at, minutes: mins });
+  } catch (e) { console.error(e); res.status(500).json({ error: "상태 조회 실패" }); }
+});
+
+// 랭킹 (period=week|month) — 누적 공부시간 기준
+app.get("/api/ranking", auth, async (req, res) => {
+  try {
+    const period = req.query.period === "month" ? "month" : "week";
+    const since = period === "month" ? kstMonthStart() : kstWeekStart();
+    // 기간 내 세션들 합산
+    const { data: rows } = await supabase.from("study_sessions")
+      .select("student_id, nickname, minutes, started_at, active")
+      .gte("started_at", since.toISOString());
+    const agg = {};
+    (rows || []).forEach(r => {
+      let m = r.minutes || 0;
+      // 진행 중 세션은 현재까지 시간으로 보정
+      if (r.active) m = Math.max(m, Math.floor((Date.now() - new Date(r.started_at).getTime()) / 60000));
+      if (!agg[r.student_id]) agg[r.student_id] = { student_id: r.student_id, nickname: r.nickname || r.student_id, minutes: 0 };
+      agg[r.student_id].minutes += m;
+      if (r.nickname) agg[r.student_id].nickname = r.nickname;
+    });
+    const list = Object.values(agg).sort((a, b) => b.minutes - a.minutes);
+    // 내 순위도 표시용으로
+    const myId = req.user.studentId;
+    const myRank = list.findIndex(x => x.student_id === myId);
+    res.json({
+      period,
+      ranking: list.slice(0, 50),
+      me: { rank: myRank >= 0 ? myRank + 1 : null, minutes: myRank >= 0 ? list[myRank].minutes : 0 },
+    });
+  } catch (e) { console.error("ranking:", e); res.status(500).json({ error: "랭킹을 불러오지 못했습니다." }); }
+});
+
 // ---- 관리자 API ----
 
 // 계정 목록 (+ 기기 수 포함)
@@ -364,6 +472,16 @@ app.get("/api/admin/users", auth, requireStaff, async (req, res) => {
     }));
     res.json(list);
   } catch (e) { console.error(e); res.status(500).json({ error: "계정 목록을 불러오지 못했습니다." }); }
+});
+
+// 전체 기기 등록 현황 (관리자) — MAU 한도 관리용
+app.get("/api/admin/device-stats", auth, requireStaff, async (req, res) => {
+  try {
+    const { data: devs } = await supabase.from("devices").select("student_id");
+    const total = (devs || []).length;
+    const uniqueUsers = new Set((devs || []).map(d => d.student_id)).size;
+    res.json({ total, uniqueUsers, limit: JAAS_MAU_LIMIT });
+  } catch (e) { console.error(e); res.status(500).json({ error: "기기 현황을 불러오지 못했습니다." }); }
 });
 
 // 계정 추가
@@ -502,10 +620,18 @@ io.on("connection", (socket) => {
   });
 
   // ── 오목 이스터에그: 신호를 상대에게 중계 (게임 로직은 클라이언트) ──
-  // 오목 신청
-  socket.on("omok-invite", ({ to }) => {
-    if (!to) return;
-    io.to(to).emit("omok-invite", { from: socket.id, nickname: socket.user.nickname || socket.user.studentId });
+  // 오목 신청 (학번으로 상대를 찾음)
+  socket.on("omok-invite", ({ studentId }) => {
+    const target = String(studentId || "").trim();
+    if (!target) return socket.emit("omok-notfound", { studentId: target });
+    if (target === socket.user.studentId) return socket.emit("omok-notfound", { studentId: target, self: true });
+    // 채팅방(캠스터디)에 있는 같은 학번의 소켓 찾기
+    let foundId = null;
+    for (const [sid, p] of participants.entries()) {
+      if (p.studentId === target) { foundId = sid; break; }
+    }
+    if (!foundId) return socket.emit("omok-notfound", { studentId: target });
+    io.to(foundId).emit("omok-invite", { from: socket.id, nickname: socket.user.nickname || socket.user.studentId });
   });
   // 신청 수락 (수락자가 후공=백, 신청자가 선공=흑)
   socket.on("omok-accept", ({ to }) => {

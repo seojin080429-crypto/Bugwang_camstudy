@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>우리반 캠스터디</title>
+<title>부광 캠스터디</title>
+<!-- PWA (홈 화면 추가 시 앱처럼 실행) -->
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#ffffff" />
+<!-- iOS 전용: 홈 화면 추가 시 전체화면 앱처럼 -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="캠스터디" />
+<link rel="apple-touch-icon" href="/icon-180.png" />
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://8x8.vc/vpaas-magic-cookie-2d4ea985808c4159987a9f058f900c4d/external_api.js"></script>
 <style>
@@ -712,12 +720,25 @@
         <h3>🔒 집중 모드</h3>
         <p>참여 중 <b>"집중 모드"</b>를 누르면 화면이 가려지고 타이머만 보여요. 캠스터디는 뒤에서 계속 진행돼요.</p>
       </div>
+      <div class="guide-sec">
+        <h3>📲 앱처럼 쓰기 (홈 화면 추가)</h3>
+        <p><b>아이폰</b>: 사파리에서 이 사이트를 열고 → 아래 <b>공유 버튼</b>(↑) → <b>"홈 화면에 추가"</b>를 누르세요.</p>
+        <p><b>안드로이드</b>: 크롬에서 우측 상단 <b>⋮ 메뉴</b> → <b>"홈 화면에 추가"</b> (또는 "앱 설치")를 누르세요.</p>
+        <p style="color:var(--ink-48);font-size:13px">홈 화면 아이콘으로 실행하면 주소창 없이 앱처럼 전체화면으로 켜져요.</p>
+      </div>
     </div>
 
     <!-- 패치노트 -->
     <div id="guide-patch" class="guide-panel hidden">
       <div class="patch-item">
-        <div class="patch-ver">v2.4 <span class="patch-tag new">최신</span></div>
+        <div class="patch-ver">v2.5 <span class="patch-tag new">최신</span></div>
+        <ul>
+          <li><b>앱처럼 쓰기</b> — 홈 화면에 추가하면 주소창 없이 앱처럼 전체화면으로 실행돼요. (사용법 참고)</li>
+          <li>앱 아이콘 추가 📲</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v2.4</div>
         <ul>
           <li><b>출석 정확도 개선</b> — 캠스터디를 나가거나 새로고침하면 출석도 함께 종료돼요. 출석 시간이 더 정확하게 기록돼요.</li>
         </ul>
@@ -957,7 +978,7 @@ window.addEventListener("load",()=>{restoreSession();});
 
 // ===== password =====
 // ===== 안내(사용법/패치노트) =====
-const APP_VERSION="v2.4";
+const APP_VERSION="v2.5";
 function openGuide(){
   $("guideVersion").textContent=APP_VERSION;
   showGuide("usage");

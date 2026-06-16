@@ -5,621 +5,1890 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>우리반 캠스터디</title>
 <script src="/socket.io/socket.io.js"></script>
+<script src="https://8x8.vc/vpaas-magic-cookie-2d4ea985808c4159987a9f058f900c4d/external_api.js"></script>
 <style>
+  /* ===== Apple-style white theme ===== */
   :root{
-    --bg:#0f1226; --card:#1a1f3d; --card2:#232a52; --line:#2e3766;
-    --txt:#e8ebff; --sub:#9aa3d4; --accent:#6c7cff; --accent2:#46d39a;
-    --danger:#ff5c7a; --warn:#ffb454;
+    --primary:#0066cc;
+    --primary-focus:#0071e3;
+    --canvas:#ffffff;
+    --parchment:#f5f5f7;
+    --pearl:#fafafc;
+    --ink:#1d1d1f;
+    --ink-80:#333333;
+    --ink-48:#7a7a7a;
+    --hairline:#e0e0e0;
+    --divider-soft:#f0f0f0;
+    --tile-dark:#272729;
+    --shadow-product:0 5px 30px 3px rgba(0,0,0,.10);
+    --font-display:"SF Pro Display","SF Pro Text",system-ui,-apple-system,BlinkMacSystemFont,"Inter","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    --font-text:"SF Pro Text",system-ui,-apple-system,BlinkMacSystemFont,"Inter","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
-    background:var(--bg);color:var(--txt);min-height:100vh}
+  html,body{margin:0}
+  body{font-family:var(--font-text);background:var(--canvas);color:var(--ink);
+    font-size:17px;line-height:1.47;letter-spacing:-0.374px;min-height:100vh;-webkit-font-smoothing:antialiased}
   .hidden{display:none !important}
-  button{font-family:inherit;cursor:pointer;border:none;border-radius:12px;font-weight:600}
-  input,textarea,select{font-family:inherit;width:100%;padding:13px 14px;border-radius:12px;
-    border:1px solid var(--line);background:var(--card2);color:var(--txt);font-size:15px;outline:none}
-  input:focus,textarea:focus,select:focus{border-color:var(--accent)}
-  label{font-size:13px;color:var(--sub);margin-bottom:6px;display:block}
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+  input,textarea,select{font-family:inherit;font-size:17px;color:var(--ink);outline:none}
+  ::placeholder{color:var(--ink-48)}
 
-  /* ---- 상단 네비 ---- */
-  .nav{position:sticky;top:0;z-index:30;display:flex;gap:8px;padding:12px 16px;
-    background:rgba(15,18,38,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);align-items:center}
-  .nav .brand{font-weight:800;font-size:17px;margin-right:auto}
-  .nav .tab{padding:8px 14px;background:var(--card2);color:var(--sub);font-size:14px}
-  .nav .tab.active{background:var(--accent);color:#fff}
-  .nav .who{font-size:12px;color:var(--sub)}
-  .nav .icon-btn{padding:8px 12px;background:var(--card2);color:var(--txt);font-size:13px}
+  .btn-pill{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    background:var(--primary);color:#fff;border-radius:9999px;padding:11px 22px;
+    font-size:17px;letter-spacing:-0.374px;transition:transform .12s,opacity .12s}
+  .btn-pill:active{transform:scale(.95)}
+  .btn-pill:disabled{opacity:.4;cursor:default}
+  .btn-pill.ghost{background:transparent;color:var(--primary);border:1px solid var(--primary)}
+  .btn-pill.small{padding:7px 16px;font-size:14px;letter-spacing:-0.224px;white-space:nowrap}
+  .btn-util{background:var(--ink);color:#fff;border-radius:8px;padding:8px 15px;
+    font-size:14px;letter-spacing:-0.224px;transition:transform .12s}
+  .btn-util:active{transform:scale(.95)}
+  .btn-util.quiet{background:transparent;color:var(--ink)}
+  .text-link{color:var(--primary);cursor:pointer}
 
-  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  /* ===== nav ===== */
+  .gnav{position:sticky;top:0;z-index:40;height:48px;background:var(--canvas);
+    border-bottom:1px solid var(--divider-soft);display:flex;align-items:center;gap:8px;padding:0 22px}
+  .gnav .brand{font-family:var(--font-display);font-weight:600;font-size:21px;letter-spacing:-0.4px;margin-right:auto;display:flex;align-items:center;gap:10px}
+  .gnav .brand-logo{height:26px;width:auto;display:block}
+  .gnav .seg{display:flex;background:var(--parchment);border-radius:9999px;padding:3px}
+  .gnav .seg button{font-size:14px;letter-spacing:-0.224px;color:var(--ink-80);
+    border-radius:9999px;padding:6px 16px;transition:.15s}
+  .gnav .seg button.active{background:var(--canvas);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .gnav .who{font-size:12px;color:var(--ink-48);letter-spacing:-0.12px}
+  @media(max-width:560px){.gnav{padding:0 14px;gap:6px}.gnav .who{display:none}.gnav .brand{font-size:17px;gap:7px}.gnav .brand-logo{height:21px}
+    .gnav .brand,.gnav .seg button,.gnav .btn-util{white-space:nowrap}.gnav .seg button{padding:6px 12px}
+    .gnav .btn-util{padding:7px 11px;font-size:13px}}
 
-  /* ---- 로그인 ---- */
-  .login-card{max-width:380px;margin:8vh auto;background:var(--card);padding:30px 26px;
-    border-radius:22px;border:1px solid var(--line);box-shadow:0 20px 60px rgba(0,0,0,.4)}
-  .login-card h1{margin:0 0 4px;font-size:24px}
-  .login-card p.sub{margin:0 0 22px;color:var(--sub);font-size:13px}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 22px 64px}
+
+  /* ===== login ===== */
+  #screen-login{min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:var(--parchment);padding:24px}
+  .login-card{width:100%;max-width:380px;background:var(--canvas);border-radius:18px;
+    padding:40px 32px;box-shadow:var(--shadow-product)}
+  .login-card h1{font-family:var(--font-display);font-size:34px;font-weight:600;
+    letter-spacing:-0.5px;line-height:1.1;margin:0 0 6px}
+  .login-card .sub{color:var(--ink-48);font-size:17px;margin:0 0 28px}
   .field{margin-bottom:14px}
-  .btn-primary{width:100%;padding:14px;background:var(--accent);color:#fff;font-size:16px;margin-top:6px}
-  .btn-primary:active{transform:scale(.98)}
-  .msg{font-size:13px;margin-top:12px;text-align:center;min-height:18px}
-  .msg.err{color:var(--danger)}
-  .msg.ok{color:var(--accent2)}
-  .hint{font-size:12px;color:var(--sub);margin-top:18px;text-align:center;line-height:1.6}
+  .field label{display:block;font-size:12px;color:var(--ink-48);margin-bottom:6px;letter-spacing:-0.12px}
+  .field input{width:100%;padding:13px 16px;background:var(--canvas);border:1px solid var(--hairline);border-radius:12px}
+  .field input:focus{border-color:var(--primary)}
+  .login-card .btn-pill{width:100%;margin-top:8px}
+  .msg{font-size:14px;text-align:center;min-height:20px;margin-top:14px;letter-spacing:-0.224px}
+  .msg.err{color:#d70015}
+  .msg.ok{color:#1d8a4e}
+  .hint{font-size:12px;color:var(--ink-48);text-align:center;margin-top:22px;line-height:1.7;letter-spacing:-0.12px}
 
-  /* ---- 캠스터디 ---- */
-  .study-top{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
-  .count-badge{display:flex;align-items:center;gap:8px;background:var(--card);padding:10px 16px;
-    border-radius:14px;border:1px solid var(--line);font-size:15px}
-  .count-badge b{font-size:22px;color:var(--accent2)}
-  .dot{width:9px;height:9px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 4px rgba(70,211,154,.2)}
-  .controls{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
-  .ctrl{padding:11px 16px;background:var(--card2);color:var(--txt);font-size:14px;border:1px solid var(--line)}
-  .ctrl.on{background:var(--accent);border-color:var(--accent)}
-  .ctrl.danger{background:var(--danger)}
-  .ctrl.join{background:var(--accent2);color:#06251a}
+  /* ===== study ===== */
+  .study-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+  .count-pill{display:flex;align-items:center;gap:10px;background:var(--parchment);
+    border-radius:9999px;padding:10px 20px;font-size:17px;letter-spacing:-0.374px}
+  .count-pill b{font-size:21px;color:var(--primary)}
+  .live-dot{width:8px;height:8px;border-radius:50%;background:#1d8a4e;box-shadow:0 0 0 4px rgba(29,138,78,.18)}
+  .study-ctrls{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+  .ctrl{background:var(--parchment);color:var(--ink);border-radius:9999px;padding:9px 18px;
+    font-size:14px;letter-spacing:-0.224px;transition:transform .12s,background .15s}
+  .ctrl:active{transform:scale(.95)}
+  .ctrl.on{background:var(--primary);color:#fff}
+  .ctrl.join{background:var(--primary);color:#fff}
+  .ctrl.leave{background:var(--ink);color:#fff}
+  .ctrl:disabled{opacity:.35;cursor:default}
 
-  .study-layout{display:grid;grid-template-columns:1fr 320px;gap:14px}
-  @media(max-width:820px){.study-layout{grid-template-columns:1fr}}
+  /* 캠스터디 화면/채팅 서브탭 (모바일 전용) */
+  .study-subtabs{display:none;background:var(--parchment);border-radius:9999px;padding:3px;margin-bottom:14px}
+  .study-subtabs .sub-t{flex:1;font-size:15px;letter-spacing:-0.2px;color:var(--ink-80);
+    border-radius:9999px;padding:10px 0;transition:.15s;display:flex;align-items:center;justify-content:center;gap:6px}
+  .study-subtabs .sub-t.active{background:var(--canvas);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .chat-badge{min-width:18px;height:18px;padding:0 5px;border-radius:9999px;background:var(--primary);
+    color:#fff;font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
 
-  .video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;
-    background:var(--card);padding:12px;border-radius:18px;border:1px solid var(--line);min-height:240px;align-content:start}
-  .tile{position:relative;aspect-ratio:4/3;background:#0a0c1c;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
-  .tile video{width:100%;height:100%;object-fit:cover;background:#0a0c1c}
-  .tile .name{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.55);padding:3px 8px;
-    border-radius:8px;font-size:12px}
-  .tile .nocam{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    flex-direction:column;gap:6px;color:var(--sub);font-size:13px}
-  .tile .nocam .av{width:46px;height:46px;border-radius:50%;background:var(--accent);
-    display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:18px}
-  .empty-study{grid-column:1/-1;text-align:center;color:var(--sub);padding:40px 10px;font-size:14px}
+  .study-grid{display:grid;grid-template-columns:1fr 340px;gap:20px}
+  @media(max-width:860px){.study-grid{grid-template-columns:1fr}}
 
-  /* 채팅 */
-  .chat-panel{background:var(--card);border-radius:18px;border:1px solid var(--line);
-    display:flex;flex-direction:column;height:520px}
-  .chat-head{padding:12px 14px;border-bottom:1px solid var(--line);font-weight:700;font-size:14px}
-  .chat-log{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
-  .chat-msg{font-size:14px;line-height:1.4}
-  .chat-msg .who{color:var(--accent);font-weight:600;margin-right:6px}
-  .chat-msg.system{color:var(--sub);font-size:12px;text-align:center}
-  .chat-msg.me .who{color:var(--accent2)}
-  .chat-input{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
-  .chat-input input{padding:11px}
-  .chat-input button{padding:0 18px;background:var(--accent);color:#fff}
+  .video-area{background:var(--parchment);border-radius:18px;padding:16px;min-height:280px}
+  /* Jitsi 영상 컨테이너 */
+  .jitsi-container{width:100%;height:600px;border-radius:12px;overflow:hidden;display:none;background:#1d1d1f}
+  .jitsi-container.active{display:block}
+  .jitsi-container iframe{width:100%;height:100%;border:0}
+  @media(max-width:640px){.jitsi-container{height:calc(100vh - 280px);min-height:420px}}
+  .cam-notice{display:flex;align-items:center;gap:8px;background:#fff4e0;color:#8a5a00;
+    border:1px solid #ffe0a3;border-radius:12px;padding:10px 14px;margin-bottom:12px;
+    font-size:13px;letter-spacing:-0.12px;line-height:1.4}
+  .cam-notice svg{flex:none}
+  .video-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+  .tile{position:relative;aspect-ratio:4/3;background:var(--tile-dark);border-radius:12px;overflow:hidden}
+  .tile video{width:100%;height:100%;object-fit:cover;background:var(--tile-dark)}
+  .tile .nm{position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,.5);color:#fff;
+    font-size:12px;letter-spacing:-0.12px;padding:3px 9px;border-radius:9999px}
+  .tile .nocam{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:8px;color:#cccccc;font-size:13px;letter-spacing:-0.12px}
+  .tile .av{width:52px;height:52px;border-radius:50%;background:var(--primary);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;font-family:var(--font-display)}
+  /* 관리자 타일 제어 버튼 (우상단) */
+  .tile-admin{position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:2}
+  .tile-act{width:34px;height:34px;border-radius:9999px;background:rgba(0,0,0,.55);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(4px);transition:transform .12s,background .15s}
+  .tile-act svg{width:18px;height:18px}
+  .tile-act:active{transform:scale(.9)}
+  .tile-act.danger{background:rgba(215,0,21,.75)}
+  @media(max-width:640px){.tile-act{width:38px;height:38px}.tile-act svg{width:20px;height:20px}}
+  /* 내 화면에서 가리기 버튼 (좌상단) */
+  .tile-hide{position:absolute;top:8px;left:8px;z-index:2;width:34px;height:34px;border-radius:9999px;
+    background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(4px);opacity:0;transition:opacity .15s,transform .12s}
+  .tile-hide svg{width:18px;height:18px}
+  .tile-hide:active{transform:scale(.9)}
+  .tile:hover .tile-hide{opacity:1}
+  @media(max-width:640px){.tile-hide{opacity:1;width:38px;height:38px}.tile-hide svg{width:20px;height:20px}}
+  /* 가림막 (가린 상태에서만 표시) */
+  .tile-cover{position:absolute;inset:0;z-index:5;background:rgba(20,20,22,.97);
+    display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    color:#cfcfcf;font-size:13px;letter-spacing:-0.1px}
+  .tile-cover svg{width:30px;height:30px;opacity:.7}
+  .tile-cover .cover-undo{margin-top:4px;background:rgba(255,255,255,.14);color:#fff;
+    border-radius:9999px;padding:7px 16px;font-size:13px;letter-spacing:-0.1px}
+  .tile-cover .cover-undo:active{transform:scale(.94)}
+  .tile.hidden-peer .tile-cover{display:flex}
+  .tile.hidden-peer .tile-hide{display:none}  /* 가린 상태에선 가리기 버튼 숨김 (가림막의 다시보기 사용) */
+  .study-empty{text-align:center;color:var(--ink-48);padding:48px 16px;font-size:17px;line-height:1.5}
+  .study-empty small{display:block;margin-top:8px;font-size:13px;color:var(--ink-48)}
 
-  /* 화면 가리기 오버레이 */
-  #privacyOverlay{position:fixed;inset:0;z-index:100;background:#05060f;
-    display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px}
-  #privacyOverlay .big{font-size:20px;color:var(--sub)}
-  #privacyOverlay .timer{font-size:42px;font-weight:800}
-  #privacyOverlay button{padding:14px 28px;background:var(--card2);color:var(--txt);font-size:15px;border:1px solid var(--line)}
-  #privacyOverlay .tip{font-size:12px;color:#4a5285}
+  /* chat */
+  .chat{background:var(--canvas);border:1px solid var(--hairline);border-radius:18px;
+    display:flex;flex-direction:column;height:540px}
+  .chat .ch-head{padding:14px 18px;border-bottom:1px solid var(--divider-soft);
+    font-family:var(--font-display);font-weight:600;font-size:17px;letter-spacing:-0.3px}
+  .chat .ch-log{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+  .cmsg{font-size:15px;line-height:1.4;letter-spacing:-0.2px;position:relative}
+  .cmsg .who{color:var(--primary);font-weight:600;margin-right:6px}
+  .cmsg.me .who{color:var(--ink)}
+  .cmsg.system{color:var(--ink-48);font-size:12px;text-align:center;letter-spacing:-0.12px}
+  .cmsg-del{margin-left:6px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.06);
+    color:#d70015;font-size:12px;line-height:1;vertical-align:middle;
+    display:inline-flex;align-items:center;justify-content:center;opacity:.55}
+  .cmsg-del:active{opacity:1}
+  .chat .ch-input{display:flex;gap:8px;padding:12px;border-top:1px solid var(--divider-soft)}
+  .chat .ch-input input{flex:1;padding:10px 14px;border:1px solid var(--hairline);border-radius:9999px}
+  .chat .ch-input input:focus{border-color:var(--primary)}
 
-  /* ---- 질문방 ---- */
-  .q-toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-  .q-toolbar button{padding:11px 18px;background:var(--accent);color:#fff;font-size:14px}
-  .q-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
-  .q-card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;cursor:pointer;transition:.15s}
-  .q-card:active{transform:scale(.98)}
-  .q-card .thumb{width:100%;height:150px;object-fit:cover;background:var(--card2)}
-  .q-card .thumb.noimg{display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:13px}
-  .q-card .body{padding:12px}
-  .q-card .subject{display:inline-block;background:var(--accent);color:#fff;font-size:11px;
-    padding:3px 9px;border-radius:20px;margin-bottom:8px}
-  .q-card .preview{font-size:13px;color:var(--txt);line-height:1.4;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:18px}
-  .q-card .meta{font-size:11px;color:var(--sub);margin-top:8px;display:flex;justify-content:space-between}
+  /* privacy overlay */
+  #privacy{position:fixed;inset:0;z-index:100;background:#000;color:#fff;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+  #privacy .lbl{font-size:19px;color:#cccccc;letter-spacing:-0.3px}
+  #privacy .tm{font-family:var(--font-display);font-size:52px;font-weight:600;letter-spacing:-1px}
+  #privacy .tip{font-size:13px;color:#7a7a7a;max-width:300px;text-align:center;line-height:1.6}
+  #privacy button{background:#1d1d1f;color:#fff;border:1px solid #3a3a3c;border-radius:9999px;
+    padding:13px 28px;font-size:15px;letter-spacing:-0.2px}
 
-  /* 모달 */
-  .modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.65);display:flex;align-items:flex-end;justify-content:center}
+  /* ===== Q&A ===== */
+  .qna-head{margin-bottom:22px}
+  .qna-head h2{font-family:var(--font-display);font-size:40px;font-weight:600;
+    letter-spacing:-0.6px;line-height:1.1;margin:0 0 4px}
+  .qna-head p{color:var(--ink-48);font-size:17px;margin:0}
+  .qna-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:24px}
+  .search-box{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;
+    background:var(--parchment);border-radius:9999px;padding:10px 18px}
+  .search-box svg{flex:none;opacity:.5}
+  .search-box input{flex:1;background:none;border:none;font-size:15px;letter-spacing:-0.224px}
+  .sort-seg{display:flex;background:var(--parchment);border-radius:9999px;padding:3px}
+  .sort-seg button{font-size:13px;letter-spacing:-0.2px;color:var(--ink-80);
+    border-radius:9999px;padding:7px 14px;transition:.15s}
+  .sort-seg button.active{background:var(--canvas);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+  .q-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}
+  .q-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:18px;
+    overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative}
+  .q-card:hover{box-shadow:var(--shadow-product)}
+  .q-card:active{transform:scale(.985)}
+  .q-card .thumb{width:100%;height:160px;object-fit:cover;background:var(--parchment);display:block}
+  .q-card .thumb.noimg{display:flex;align-items:center;justify-content:center;color:var(--ink-48);font-size:14px}
+  .q-card .cbody{padding:16px 18px 18px}
+  .q-card .subj{display:inline-block;background:var(--parchment);color:var(--primary);
+    font-size:12px;font-weight:600;letter-spacing:-0.12px;padding:4px 12px;border-radius:9999px;margin-bottom:10px}
+  .q-card .ctext{font-size:15px;line-height:1.4;letter-spacing:-0.224px;color:var(--ink);
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:20px}
+  .q-card .cmeta{display:flex;justify-content:space-between;align-items:center;
+    margin-top:12px;font-size:12px;color:var(--ink-48);letter-spacing:-0.12px}
+  .q-card .del{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:50%;
+    background:rgba(255,255,255,.92);color:#d70015;display:none;align-items:center;justify-content:center;
+    font-size:16px;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+  .q-card.mine .del{display:flex}
+  .q-empty{grid-column:1/-1;text-align:center;color:var(--ink-48);padding:56px 16px;font-size:17px}
+
+  /* ===== admin table ===== */
+  .admin-table{border:1px solid var(--hairline);border-radius:18px;overflow:hidden}
+  .arow{display:grid;grid-template-columns:90px 1fr auto;gap:12px;align-items:center;
+    padding:14px 18px;border-bottom:1px solid var(--divider-soft)}
+  .arow:last-child{border-bottom:none}
+  .arow.head{background:var(--parchment);font-size:12px;color:var(--ink-48);letter-spacing:-0.12px;font-weight:600}
+  .arow .aid{font-weight:600;font-size:15px;letter-spacing:-0.224px}
+  .arow .aname{font-size:14px;color:var(--ink-80);letter-spacing:-0.2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .role-badge{font-size:11px;font-weight:600;letter-spacing:-0.1px;padding:3px 10px;border-radius:9999px}
+  .role-badge.owner{background:#1d1d1f;color:#fff}
+  .role-badge.admin{background:#e6f0ff;color:var(--primary)}
+  .dev-badge{font-size:11px;color:var(--ink-48);background:var(--parchment);
+    padding:2px 8px;border-radius:9999px;letter-spacing:-0.1px}
+  .arow .aacts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .aact{font-size:12px;letter-spacing:-0.12px;padding:6px 12px;border-radius:9999px;
+    background:var(--parchment);color:var(--ink-80);white-space:nowrap;transition:transform .12s}
+  .aact:active{transform:scale(.94)}
+  .aact.danger{color:#d70015}
+  .aact.primary{background:var(--primary);color:#fff}
+  .aact:disabled{opacity:.3;cursor:default}
+  @media(max-width:620px){
+    .arow{grid-template-columns:1fr;gap:8px}
+    .arow.head{display:none}
+    .arow .aacts{justify-content:flex-start}
+  }
+
+  /* ===== modal ===== */
+  .modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.4);
+    display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
   @media(min-width:600px){.modal{align-items:center}}
-  .modal-card{background:var(--card);width:100%;max-width:560px;max-height:90vh;overflow-y:auto;
-    border-radius:22px 22px 0 0;padding:22px}
-  @media(min-width:600px){.modal-card{border-radius:22px}}
-  .modal-card h2{margin:0 0 16px;font-size:19px}
-  .modal-card .row{margin-bottom:14px}
+  .modal-card{background:var(--canvas);width:100%;max-width:560px;max-height:92vh;overflow-y:auto;
+    border-radius:20px 20px 0 0;padding:28px 26px 26px;position:relative}
+  @media(min-width:600px){.modal-card{border-radius:20px}}
+  .modal-card h2{font-family:var(--font-display);font-size:24px;font-weight:600;letter-spacing:-0.4px;margin:0 0 18px}
+  /* 안내(사용법/패치노트) 모달 */
+  .guide-tabs{display:flex;background:var(--parchment);border-radius:9999px;padding:3px;margin-bottom:18px}
+  .guide-t{flex:1;font-size:15px;letter-spacing:-0.2px;color:var(--ink-80);
+    border-radius:9999px;padding:9px 0;transition:.15s}
+  .guide-t.active{background:var(--canvas);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .guide-sec{margin-bottom:20px}
+  .guide-sec h3{font-family:var(--font-display);font-size:16px;font-weight:600;letter-spacing:-0.3px;margin:0 0 6px}
+  .guide-sec p{font-size:14.5px;line-height:1.55;letter-spacing:-0.2px;color:var(--ink-80);margin:0 0 6px}
+  .guide-sec p b{color:var(--ink)}
+  .patch-item{margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid var(--divider-soft)}
+  .patch-item:last-child{border-bottom:none}
+  .patch-ver{font-family:var(--font-display);font-size:18px;font-weight:600;letter-spacing:-0.3px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .patch-tag{font-size:11px;font-weight:600;padding:3px 10px;border-radius:9999px}
+  .patch-tag.new{background:var(--primary);color:#fff}
+  .patch-item ul{margin:0;padding-left:18px}
+  .patch-item li{font-size:14px;line-height:1.6;letter-spacing:-0.2px;color:var(--ink-80);margin-bottom:5px}
+  .patch-item li b{color:var(--ink)}
+  /* 오목 */
+  .omok-pick-row{display:flex;justify-content:space-between;align-items:center;
+    padding:12px 14px;border:1px solid var(--hairline);border-radius:12px;margin-bottom:8px}
+  .omok-pick-row .nm{font-size:15px;letter-spacing:-0.2px}
+  .omok-status{text-align:center;font-size:15px;letter-spacing:-0.2px;color:var(--ink-80);
+    margin-bottom:12px;min-height:22px;font-weight:500}
+  .omok-board{display:grid;grid-template-columns:repeat(15,1fr);gap:0;
+    background:#e3c08a;border:2px solid #b8935a;border-radius:8px;
+    aspect-ratio:1;width:100%;max-width:420px;margin:0 auto;padding:8px}
+  .omok-cell{position:relative;aspect-ratio:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  /* 격자선 */
+  .omok-cell::before{content:"";position:absolute;left:50%;top:0;width:1px;height:100%;background:#8a6d3b;opacity:.5}
+  .omok-cell::after{content:"";position:absolute;top:50%;left:0;width:100%;height:1px;background:#8a6d3b;opacity:.5}
+  .omok-stone{position:relative;z-index:2;width:78%;height:78%;border-radius:50%;
+    box-shadow:0 1px 2px rgba(0,0,0,.4)}
+  .omok-stone.black{background:radial-gradient(circle at 35% 30%,#555,#000)}
+  .omok-stone.white{background:radial-gradient(circle at 35% 30%,#fff,#cfcfcf)}
+  .omok-stone.last{box-shadow:0 0 0 2px #d70015,0 1px 2px rgba(0,0,0,.4)}
+  .omok-info{text-align:center;font-size:13px;color:var(--ink-48);margin-top:12px;letter-spacing:-0.1px}
+  /* 안내 팝업 구석 이스터에그 버튼 */
+  .omok-egg{position:absolute;bottom:14px;right:18px;font-size:11px;color:var(--ink-48);
+    opacity:.45;cursor:pointer;letter-spacing:-0.1px;user-select:none}
+  .omok-egg:hover{opacity:.9}
+  /* 출석 */
+  .attend-pill{display:flex;align-items:center;gap:6px;background:#e6f7ed;color:#1d8a4e;
+    border-radius:9999px;padding:10px 18px;font-size:16px;font-weight:600;letter-spacing:-0.3px}
+  .ctrl.attend{background:#1d8a4e;color:#fff}
+  .ctrl.attend.on{background:#d70015}
+  /* 랭킹 */
+  .rank-period{display:flex;background:var(--parchment);border-radius:9999px;padding:3px;margin-bottom:18px;max-width:300px}
+  .rank-pbtn{flex:1;font-size:14px;letter-spacing:-0.2px;color:var(--ink-80);
+    border-radius:9999px;padding:9px 0;transition:.15s}
+  .rank-pbtn.active{background:var(--canvas);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .my-rank{background:var(--primary);color:#fff;border-radius:16px;padding:16px 20px;margin-bottom:18px;
+    display:flex;align-items:center;justify-content:space-between}
+  .my-rank .mr-label{font-size:13px;opacity:.85;letter-spacing:-0.1px}
+  .my-rank .mr-rank{font-family:var(--font-display);font-size:24px;font-weight:600}
+  .my-rank .mr-time{font-size:17px;font-weight:600}
+  .rank-row{display:flex;align-items:center;gap:14px;padding:14px 18px;
+    border:1px solid var(--hairline);border-radius:14px;margin-bottom:8px}
+  .rank-row.me{border-color:var(--primary);background:#f0f7ff}
+  .rank-num{font-family:var(--font-display);font-size:18px;font-weight:600;width:34px;text-align:center;color:var(--ink-48)}
+  .rank-row.top1 .rank-num{color:#e6a817}
+  .rank-row.top2 .rank-num{color:#9aa0a6}
+  .rank-row.top3 .rank-num{color:#cd7f32}
+  .rank-medal{font-size:20px;width:34px;text-align:center}
+  .rank-name{flex:1;font-size:16px;letter-spacing:-0.3px}
+  .rank-time{font-size:15px;font-weight:600;color:var(--primary);letter-spacing:-0.2px}
+  .rank-empty{text-align:center;color:var(--ink-48);padding:48px 16px;font-size:16px}
+  /* 관리자 기기 현황 */
+  .dev-stats{background:var(--parchment);border-radius:16px;padding:18px 20px;margin-bottom:18px}
+  .ds-main{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+  .ds-label{font-size:14px;color:var(--ink-48);letter-spacing:-0.2px}
+  .ds-count{font-size:15px;color:var(--ink-48)}
+  .ds-count b{font-family:var(--font-display);font-size:26px;font-weight:600;color:var(--ink)}
+  .ds-bar{height:8px;background:#e0e0e0;border-radius:9999px;overflow:hidden}
+  .ds-fill{height:100%;background:var(--primary);border-radius:9999px;transition:width .4s,background .3s;width:0%}
+  .ds-fill.warn{background:#e6a817}
+  .ds-fill.danger{background:#d70015}
+  .ds-sub{font-size:12.5px;color:var(--ink-48);margin-top:8px;letter-spacing:-0.1px}
+  .mrow{margin-bottom:16px}
+  .mrow label{display:block;font-size:12px;color:var(--ink-48);margin-bottom:6px;letter-spacing:-0.12px}
+  .mrow input[type=text],.mrow input[type=password],.mrow textarea{width:100%;padding:12px 15px;
+    border:1px solid var(--hairline);border-radius:12px;letter-spacing:-0.224px}
+  .mrow input:focus,.mrow textarea:focus{border-color:var(--primary)}
+  .mrow input[type=file]{font-size:14px;color:var(--ink-80)}
+  .preview-img{width:100%;border-radius:12px;margin-top:10px;max-height:260px;object-fit:contain;background:var(--parchment)}
   .modal-actions{display:flex;gap:10px;margin-top:8px}
-  .modal-actions button{flex:1;padding:13px}
-  .btn-cancel{background:var(--card2);color:var(--txt);border:1px solid var(--line)}
-  .btn-ok{background:var(--accent);color:#fff}
-  .preview-img{width:100%;border-radius:12px;margin-top:10px;max-height:260px;object-fit:contain;background:#0a0c1c}
+  .modal-actions button{flex:1}
+  .btn-cancel{background:var(--parchment);color:var(--ink);border-radius:9999px;padding:11px 22px;
+    font-size:17px;letter-spacing:-0.374px;transition:transform .12s}
+  .btn-cancel:active{transform:scale(.95)}
 
-  .detail-img{width:100%;border-radius:12px;background:#0a0c1c;max-height:50vh;object-fit:contain;margin-bottom:14px}
-  .answer{background:var(--card2);border-radius:12px;padding:12px;margin-bottom:8px;font-size:14px}
-  .answer .who{font-size:12px;color:var(--accent);margin-bottom:4px}
-  .answer-input{display:flex;gap:8px;margin-top:12px}
-  .answer-input button{padding:0 18px;background:var(--accent);color:#fff}
+  .detail-img{width:100%;border-radius:14px;background:var(--parchment);max-height:46vh;
+    object-fit:contain;margin-bottom:16px}
+  .detail-meta{font-size:13px;color:var(--ink-48);margin:6px 0 18px;letter-spacing:-0.12px}
+  .ans{background:var(--parchment);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+  .ans .ans-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+  .ans .who{font-size:12px;color:var(--primary);font-weight:600;letter-spacing:-0.12px}
+  .ans .ans-del{flex:none;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.05);
+    color:#d70015;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
+  .ans .txt{font-size:15px;line-height:1.45;letter-spacing:-0.224px}
+  .ans-input{display:flex;gap:8px;margin-top:14px}
+  .ans-input input{flex:1;padding:11px 16px;border:1px solid var(--hairline);border-radius:9999px;letter-spacing:-0.224px}
+  .ans-input input[type=text],.ans-input input#answerInput{flex:1}
+  .ans-input input:focus{border-color:var(--primary)}
+  .ans-photo-btn{flex:none;width:40px;height:40px;border-radius:9999px;background:var(--parchment);
+    color:var(--ink-80);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .12s}
+  .ans-photo-btn:active{transform:scale(.92)}
+  .ans-photo-btn.has-img{background:var(--primary);color:#fff}
+  .ans .ans-img{width:100%;max-height:240px;object-fit:contain;border-radius:10px;margin-top:8px;background:var(--canvas)}
+  /* 사진 저장 버튼 */
+  .img-dl-btn{display:inline-flex;align-items:center;gap:4px;background:var(--parchment);color:var(--ink-80);
+    border-radius:9999px;padding:8px 16px;font-size:13px;letter-spacing:-0.2px;margin:8px 0 4px;transition:transform .12s}
+  .img-dl-btn:active{transform:scale(.95)}
+  .img-dl-btn.small{padding:6px 13px;font-size:12px;margin-top:6px}
 
-  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card2);
-    color:var(--txt);padding:12px 20px;border-radius:14px;border:1px solid var(--line);
-    z-index:200;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+  .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:12px 22px;border-radius:9999px;
+    z-index:200;font-size:14px;letter-spacing:-0.224px;box-shadow:var(--shadow-product)}
+
+  /* ===== 하단 탭바 (모바일 전용, 기본 숨김) ===== */
+  .tabbar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:60;
+    background:rgba(255,255,255,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border-top:1px solid var(--divider-soft);
+    padding-bottom:env(safe-area-inset-bottom)}
+  .tabbar-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:9px 0 7px;color:var(--ink-48);transition:color .15s}
+  .tabbar-btn svg{width:25px;height:25px}
+  .tabbar-btn span{font-size:11px;letter-spacing:-0.1px;font-weight:500}
+  .tabbar-btn.active{color:var(--primary)}
+  .tabbar-icon{position:relative;display:inline-flex}
+  .tabbar-badge{position:absolute;top:-5px;right:-9px;min-width:17px;height:17px;padding:0 4px;
+    border-radius:9999px;background:#d70015;color:#fff;font-size:10.5px;font-weight:700;
+    display:inline-flex;align-items:center;justify-content:center;line-height:1}
+
+  /* ============================================================
+     모바일 (≤640px) — 앱처럼 동작하도록 종합 개선
+     ============================================================ */
+  @media(max-width:640px){
+    body{font-size:16px}
+
+    /* 상단 네비: 탭은 하단으로 내리고, 브랜드+로그아웃만 */
+    .gnav{height:52px;padding:0 16px}
+    .gnav .seg{display:none}              /* 상단 탭 숨김 → 하단 탭바 사용 */
+    .gnav .brand{font-size:19px;margin-right:auto}
+    .gnav .btn-util{padding:8px 12px;font-size:13px}
+
+    /* 하단 탭바 표시 */
+    .tabbar{display:flex}
+
+    /* 본문: 하단 탭바 높이만큼 여백 확보 */
+    .wrap{padding:18px 16px calc(80px + env(safe-area-inset-bottom))}
+
+    /* ── 캠스터디 ── */
+    .study-head{flex-direction:column;align-items:stretch;gap:12px;margin-bottom:16px}
+    .count-pill{justify-content:center;font-size:16px;padding:11px 20px}
+    .count-pill b{font-size:20px}
+    /* 컨트롤 버튼: 큼직하게 2열 그리드 */
+    .study-ctrls{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-left:0}
+    .study-ctrls .ctrl{padding:13px 10px;font-size:15px;border-radius:14px;
+      display:flex;align-items:center;justify-content:center}
+    .study-ctrls .ctrl.join{grid-column:1 / -1}   /* 참여 버튼은 가로 전체 */
+
+    .study-grid{gap:14px}
+    .study-subtabs{display:flex}
+    /* 모바일: 화면/채팅 중 하나만 표시 */
+    .study-grid.show-video #chatPanel{display:none}
+    .study-grid.show-chat #videoArea{display:none}
+    .study-grid.show-chat #chatPanel{height:calc(100vh - 320px);min-height:380px}
+    .video-area{padding:12px;border-radius:14px}
+    /* 비디오 타일: 2열 고정 */
+    .video-tiles{grid-template-columns:1fr 1fr;gap:9px}
+    .tile{border-radius:10px}
+    .study-empty{padding:32px 12px;font-size:15px}
+
+    /* 채팅: 화면에 맞는 높이로 (고정 540px 제거) */
+    .chat{height:58vh;min-height:340px;border-radius:14px}
+    .chat .ch-head{padding:12px 16px;font-size:16px}
+    .chat .ch-input{padding:10px}
+    .chat .ch-input input{font-size:16px}  /* iOS 확대 방지 위해 16px */
+
+    .cam-notice{font-size:12.5px;padding:10px 12px}
+
+    /* ── 질문방 ── */
+    .qna-head h2{font-size:30px}
+    .qna-head p{font-size:15px}
+    .qna-bar{gap:8px}
+    .search-box{order:1;flex:1 1 100%;min-width:0}
+    .sort-seg{order:2;flex:1 1 auto;justify-content:center}
+    .sort-seg button{flex:1;padding:8px 10px}
+    .qna-bar > .btn-pill{order:3;flex:1 1 100%}  /* 질문 올리기 버튼 가로 전체 */
+    /* 질문 카드: 1열로 크게 */
+    .q-grid{grid-template-columns:1fr;gap:14px}
+    .q-card .thumb{height:180px}
+
+    /* ── 입력칸 iOS 확대 방지 ── */
+    .field input,.mrow input,.mrow textarea,.ans-input input,
+    .search-box input,#askSubject{font-size:16px}
+
+    /* ── 모달: 하단 시트 스타일 그대로, 좀 더 여유 ── */
+    .modal-card{padding:24px 20px calc(24px + env(safe-area-inset-bottom))}
+    .modal-card h2{font-size:22px}
+
+    /* ── 관리자 테이블: 카드형으로 (이미 1열이지만 터치 영역 키움) ── */
+    .aact{padding:9px 14px;font-size:13px}
+
+    /* 로그인 카드 */
+    .login-card{padding:32px 24px}
+    .login-card h1{font-size:30px}
+  }
+
+  /* 아주 작은 화면 (≤360px) */
+  @media(max-width:360px){
+    .study-ctrls{grid-template-columns:1fr}
+    .study-ctrls .ctrl.join{grid-column:auto}
+    .video-tiles{grid-template-columns:1fr}
+  }
+
+  /* 모바일 타일 정리: '카메라 꺼짐' 텍스트 숨기고 아바타만 */
+  @media(max-width:640px){
+    .tile .nocam span{display:none}
+    .tile .av{width:46px;height:46px;font-size:18px}
+    .tile .nm{font-size:11px;padding:2px 8px;left:8px;bottom:8px;max-width:80%;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  }
 </style>
 </head>
 <body>
 
-<!-- ============ 로그인 화면 ============ -->
+<!-- ===== LOGIN ===== -->
 <div id="screen-login">
   <div class="login-card">
-    <h1>📚 우리반 캠스터디</h1>
-    <p class="sub">학번으로 로그인하세요</p>
+    <h1>캠스터디</h1>
+    <p class="sub">학번으로 로그인하세요.</p>
     <div class="field">
-      <label>학번 (아이디)</label>
-      <input id="loginId" placeholder="예) 30101" autocomplete="username" inputmode="numeric" maxlength="5"/>
+      <label>학번</label>
+      <input id="loginId" placeholder="예) 30101" autocomplete="username"/>
     </div>
     <div class="field">
       <label>비밀번호</label>
-      <input id="loginPw" type="password" placeholder="초기 비밀번호: 1234" autocomplete="current-password"/>
+      <input id="loginPw" type="password" placeholder="초기 비밀번호 1234" autocomplete="current-password"/>
     </div>
-    <button class="btn-primary" onclick="doLogin()">로그인</button>
+    <button class="btn-pill" onclick="doLogin()">로그인</button>
     <div id="loginMsg" class="msg"></div>
     <div class="hint">처음이라면 비밀번호 <b>1234</b> 로 로그인하세요.<br>로그인 후 비밀번호를 바꿀 수 있습니다.</div>
   </div>
 </div>
 
-<!-- ============ 메인(로그인 후) ============ -->
+<!-- ===== MAIN ===== -->
 <div id="screen-main" class="hidden">
-  <div class="nav">
-    <div class="brand">📚 캠스터디</div>
-    <button class="tab active" id="tab-study" onclick="showTab('study')">캠스터디</button>
-    <button class="tab" id="tab-qna" onclick="showTab('qna')">질문방</button>
+  <nav class="gnav">
+    <div class="brand">
+      <span>캠스터디</span>
+      <img class="brand-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALoAAABQCAYAAACu0W8VAABCTUlEQVR42u19aZhdVZX22mee75nvPXe+t6pujalKUpkqqVCQgcQkkAQswTAprWkBA6Ji1E8tbQca+fgUHNPajQhid2wHsEFFMAyCKGEOyBRIAmHMQAZSwx3294O9i51LZY7dNuQ8Tz2Pkqp7z9ln7bXe9a53rY3gb3/xAFADAAwAwPM8dHR02EEQRI8//vi44eHhwvDwcFutVlM0TfMBwASA7dVqdZjjuGdlWX6wqanpz3/84x+fqFar7GdW4dh17PofvhAxRgQAIIoinHXWWZPGjx//GcdxblUUZbOmaYOO4+BYLIZ5nsdkI+z1gxDCPM9jSZL26Lp+TxRFn1q6dGlIvoM7tszHrv+RC2NMDRyo946iqLdUKl3d1NS0zfM8LMsyNk0TcxyHRVEs8zxfBoAK+akCQJXjuApCqAIAFYRQlRo+x3FYVdVXoij6MMdxx4z92HVInvdofQ4HAFWe56G3t9d+4oknloiieCYAlCRJquzYsUPcvXt3vFwuc7VajUMIAcYYiBHX6iIBe1URQhgAagghVKvVREEQwPO8727ZsuWCarW6FzQ6dh27/lYbhaPe+9JLLy02NTVdkkwm12QymVfCMNyu6/rrxGtTSFIFgDLx2Jj11oIgYFEUsSzLVVmWq4IgYEEQ9oI2CKEyAAwJgoBTqdRnEEIwxuY4dh27jppH5wCgxvM8PPzww+6ZZ565/LXXXlvAcRw/NDRk79q1Kzs8PKwTOAMIoQpCiOc4DtVqNeA4DgRBeANjvN6yrL/IsvwgxnhDGIYvDA8P75FlGYaGhuSdO3dmOY7LDg4O9uzZs2fuyMhIslKpAABUVFXFzc3N7Q899NAz5Flqx17pseuoXAMDAxzdIBhjcfbs2afl8/l7MpnMk77v3ydJ0lYAwDzPYwI5yqqq1jRNw6ZpYsuynvU8798ymcxpixcvzvA8D8Qr739HIgQrV66MFQqFcw3DeBYhhBFC2HXdGwleP+bVj11H7eIpi7Jw4cIFmUzmZ/F4/JkoijYoirJVEARq3FgQhEHP87ZFUYTj8fhLQRD8a1tb26zly5drYxi2QH54EinYH575NwAAuPDCC+O6rm8CgJogCLilpWURe3/HrmPXkVwCAMDKlSvz06ZNu9pxnF1RFG2KxWIbLct6Q5KkmiAIVZ7nh13XfS2fzz+fTqcfS6VS/5TP53OMcaM6oz5UqCUDAHAc9wuC2WuGYTyAMT6cz3sn5EfcUSQVjhk5QgiKxeLSWCy2RdM0rOt6zTCMPbIsY9u2B0VRLANAVVVVnMlknkwkEp/P5XIJ5jPEsaLD4eQGGGOkadqdJEEdEQQBNzc3n/Au9+rHotkReg0eIQSJROJ8YuAjAFDjOK6m6/qwLMuU/8aKomDbtv+ltbU1V/cCBACAzs7OMJlM9px55pn6EdwPWrlyZUxV1W3Eow9zHFfzff8yNvK806++vj5lzpw52UWLFmVpwn8UCIZ3r5HzPA9BEPyTJEk4kUjs1DRtKAiCVy3L2kU8agUhhA3DWN/a2voekhhSgxvlxXt6ejp0Xd/M8zzWNO3pMAw/Tl4QOoSXIwAApFKpf+Q4jn53GQCw4zj/9i5ISjkAgBNPPDHjed4jiqJgWZaHYrHYvaVS6TSe548Z++HAFZ7nIZlMXibLMrYsa1iW5bKu68Oe5+0gXrwmCAK2bfv697///X6dgdMXg/r6+tK6rm+kG4OyMr7vf49gd+4gXzK3YsUKyzCMzfAmlVgFgDIAYNd1f/xuYV/6+vqE7u7ulng8/lFRFHfR9fQ87/azzjore8zYDxGTJxKJAcKkjCCEsGVZw6qqjhCDxbIsD2ez2QsYL87XRwSMMafr+j3kb8qMsVdEUcTt7e0NrLc60Mbzff9qjuMw4eUxQqiMEKo5jvMdsmmEd9OLyuVy55OC2gipK/w5nU67hxgp351JDUIIUqnUcp7nMcdxZeI9KXVYBQCsadoLTU1NxzEGjsaCGZ7nfZHy6bB3dbSmqurLixYt8g/ipYgIIYjH418iL7VC7wchVOF5Hmez2TP/jjH638LgeAAQVq9erWqa9ix1JIlEonb22Wd/CACgv7//3Zig8vuwx7dn7uPHj++SZXmEGFSNMdAy8ewP9fX15fdjWDwAQENDw3SCpcvwplZltIgkCAJubGw89QCMAaLRJZfLfUwQhFEjJ4ZeRQjVFEV5pb+/P/Z36sVYGHe06U8BAMB13a+TtR0RBKHS09PzEybhfzd5dTRWTjPWL3EXX3yxahjGwyyeZv+3YRiP1OHxMZPYq6++WtE07VGO4zDHcXt5YI7jsO/7B0oeOQDgOI6DTCbzfyRJwvUbDyFU5jgOp9Ppj/6denOEEILFixfbf6NEUQAA1NTUtFQURQwAIxzH4ZkzZ/7ik5/8ZAPAaCX73XBxCCHo6uo6vr29ffq6deukfa23gBACz/O+SMr3ZdZzEiPfMH/+/PQBvLAAAOD7/udFUcSJROI1Ksoin1PTdf2ZNWvWKLDvYgcP8KbsNwzDqyhcQQjVaOWVGrllWbcx8uC/J+/FcxwHvu9/V1XVVz3P+01ra+uEMTwNgsMv+vAAADNmzJjGOAKcz+cffuKJJ/z/Ro/O/zeu/1hRmwcAKBaLH5BlGYuiiE3TfIRBHdxeXub973+/r6rqdnhTGkuhRg0hVJNleee0adPGHQD7cQCAZs+eXRRFcU8ikVivadoOYpg1AKhIkoRzudx79rFZaNUU+vr6EoZh/JaBPjQiYKp8VFV1C3kYdISwQCDPxB3GCxbg7TIFHiEE6XR6BYFbGN6sM7xSKBRKsHdV820v7FANvaenZzIx9CqBlpuXL18eO4Ch88wG45mfvwlcGAO+HerG4PexXjwAoN7e3pKqqm+QNRgGAKzr+rNTpkyx2L8TAACSyeRHiMekjEaNsCO1pqamhQcBD3ie58GyrFs1TduVSCT+TI2cQhbP867ZB2ThSawH27ZPMgzjBfLy2MgyauSyLO9saWnp2Y+BHG55/GD+Zq/f4TiOFabxAMCNGzeuqCjKEGGHRgAAi6KIwzC8lPyeBACwYsUKa+HChamBgQHtcD36tGnTZsiyPOrRLcva8tnPfnbiPgxx1CMihIDneeB5Hhjm7FDWDBHC4YR0Or101qxZ8f1srtH3KwjCoSTqHLvOl112mTl//vyA+QyB4zhwHOcGmqcQ+9jjuu5t2Wy2uNeH8TwPtm3fIklSTRTFMstohGF4GXmR4oEWvVgsvkcQBJxOp28RBGGQ4buriqJsnzdvXlS3s6lwC5YvXx4zTfN7rututW17F6tjZ+GULMs7mpubj9/Pxhtr54/5wjHGKJ1Or1i8ePFJJ598cjODpfebAHIcB2EYzgnD8Guu617ved4Pi8XiKfTvXdddRe59iECsB8aPH99FkmYeIQSu635AVdVXFEXZoWnaxkQi8fGBgQGh7v6F/SSyPABAY2PjIhI5ygghLIriaxdccMGpdRXT0d8XBAESicR7Pc+7JZfL3en7/i+DIPhJLpd7zyHkEggA0CWXXGJqmradFAI3t7W19Y7xDngAgMmTJ0+yLOsmVVUfCIJg5ZIlS7yDiDrA8zwkEomzfd//jWEYL6qquj0Wi61NpVIf5jgOmpubJwmCUKPPr6rq1lKp1Fv/LhEAwJVXXimrqrqJ4zjM83yVwdObrrjiCvUgQg2HMeY0TXvKsqyNruvShLYGABWSNJ5fZ3g8NZpUKnVqLBZbm0gkHgzD8FlBEIaokWuaVo3FYoMcx2HTNB8tlUqdB2J84vF4YdKkSR2XXnqpsw8ZMA8AEEXRp2VZxo7j7FFVdTgIgp8Wi8XsGFhw9H7T6fRxruv+KpvNvqqq6ig0EQQBO45z7bx589plWR6i0ccwjHsYKAEAgMaNG9cty3KVSfaxIAi4WCxeeKBnq990jY2NZ9J6B7xZPHv685///Iw6Q+cB3qyqGoZxSxAEW5LJ5FD9/fu+f92VV14pH4Rnp1XqM0kONUje1VaGMuaox21sbPygqqrDFH5yHIcNw9jU3NzcvA/oKRDmbqLjOL/O5XLrPc/DDM2NBUHAURRd7rruavIMI4qi7G5tbZ061hpyAAAnnXRSXJKk1xk8XUYI4SiKVh4MZCHFiyWSJOFsNnszx3FVauQknN6LMeZIVBBoGMtmsxMdx/m567oPRlH0X6qqPsFCFV3XR0zTrPA8jy3L+s+VK1fG9oPveQCAIAg+IEnSoKIoVU3TXg2C4P9dffXVCvPiEACg+fPnB7Is76T0JwBURVHEDQ0NX657ZgQAiOM4SCaTnwjD8MFEInGrpmmvIISGiYENAUCF53msKMpWsoZVVVVfOfPMM0Pm83iO48CyrNvhrSJaDSFUFgShlslkTqPPhzFGmUzm4mKxeMrChQtT+5A3QxiGHxdFESOEhgAAp1KpR04++eTj6tdl+vTp43VdfymKonXxePwRct8VABim9RGEEA6C4AcHYMRoMZA3DOMBCnGBVMqnTJnSRuEZiXyfJaxQjTxvFQCGEELYcZwfj1Ho40nd5AOu6z6QSqV+parqJuZv94r05LMrHMfhXC73QRYavs2jn3POObYsy1tZlkWW5Z1z5sxJHiDZQ4w3/2ssFnvUMIynmMJQVZblWnd39wzWgxeLxQ7XdX/gOM4j6XT6Bt/3b+U4bpg+gGEYu3VdL0uShGVZfiOVSn1sHxXY0UXieR5SqdRnmASwBqRNz3Xdi5jfFYg3/xhNdsnLwkEQvNDU1PRLsviIfT7Lsn4Uj8cfDsPwRprw0LWiC06pVAAok03zPtbIiZeaV1f4GmWjMMajv5fJZE6SJAlrmrZHUZTXs9nsF1avXs0mZQIAgGmaq4iXG0II4Vwud9vChQuPJ0m9QJiZdkVRBqMoutd13b8yzoTmPBVVVf/KcdweSZJwPp8/bj/5D48QgjAMv0Y1R3StJUl6lSSAPMdxEEXRV+g0B47jRguPHMeVOY6rOo7zo7p2SIHneXAc5ythGD6Vy+V+xvP8G4wDriGEsKIo22VZ3kjWboRsml8QuLJPp8yRJPKPxDiHCatx10F02wsEKpwryzJOJpM3ybKMiaqxwnEcdhznWmrgkydPLjmO8x3Hcf6cy+VuSKfTN4miuAXe6h3dE0XRfel0en0URSOWZd3a09PTwWhiUF004gEAlixZ4sVisf8gRl5l+PYRjuNwGIb/SKusAICmT59uyrL8PPW8AFATRXFbFEV/8jzvy8zvCoIggG3bv3Vd92Hf928cw0jKvu9f3tvb201qEDUAwL7v08RbeCuf4sA0zdvY2gTNhVKpFL1HCSEEpmn+Dt6akIBFUcSlUuk0FrtzHAeapt0ahuEb1NCbm5v/feXKlaMFvfPPP9+QJGl9EARrPc97gNlcZYQQtm377p6engkYY8HzvK9xHFdLpVJf2Uck5wEAdXR0dEqSVGOMvAwANc/z/pMm54lE4uOCIOAwDDcmk8l1TJM7RghVBEHAuVzuFNYBIYTA9/3LdV3fWiwWryMbadQZiKKIfd//zrx586JSqfQe8r5riqJsI5FzvwwcT/DW2cTTDJEF+AHBecIBvLmoqupG3/cf0XV9I2l0rhiGUVZVdespp5zS0tLScqLneddYlrUlm83+PJ1OX6Np2vN0h4ui+EYQBPeXSqWfT5gw4felUun3M2bMOIfBmaP3wI7VIAWl9xmGsR721tOMeltd15+/5JJLTHK/ItmYKxiGqYoQwmEY3un7/uP5fL4ZAKC7u1vkOA5s2/6+ZVnPJ5PJXzGRqoIQwpqmbWxqapqJEILVq1dLiqK8Qox/4+zZsz0mH+HIZ06UJKlKqUDmHp8jtQUeAFBXV9d4URQrzKatyLJcnjJlyjTWU3/iE5/Qbdt+JgzDjeSFV8aNG3flhAkTkhRuxWKxa13X3RMEwduM3PO835HvBQCAtra29/I8j+Px+Jf3ZejkM2+uKypWBUHAmUzmZAJjP0KM/MXZs2cvFwThNWLko47FMAxaTxmtgCcSibM1TRvK5/M/5XmebqIqQqgqSVIlnU6fQSO767qXIYSwIAjVVCp11sEWDWl4vpkmC7Zt/wvxpPI+Mn8KAZYrioKjKLqN53nM83xNluWybdtlWZa3apr2FMGQmOO4Ks0FqDdDCFXDMHxqypQpP58yZcp/tre3n0cgE4yxQ0dD6aRJkybHYrFf0f5UnuerdXx7mVRhP8d68yuvvFLWNG09WfgK8RTb0+n0bbZt/yt5ZolQZ2eoqronHo//imp9qHFqmrZhypQpBXpfZN4MRgjhdDr91bqsnyfeisKMMiNKw2EYDpDfkwkjcy3zexUAwKZp3sFEWJ5Qwj2e5+1IJpPrAQCn0+kXL7roorObm5tN8u+nkbxhkKmLVEj4//MnPvEJHQDQwMCA0NraeloURf8ly/JIJpPpZb+njlk7hZVjMJt1A8YYpVKpBYqi4HQ6/cz06dPHG4bxE+rFWTaPISckAECNjY0NiqIMJhKJG3ie38V8dkUUxVoqlXovfY/9/f0xWZZfAYCaLMu7Ozs75x0sY8QBAJxwwgkNiqJUCB34zM033yzvj15at26dJMvyZs/z7tU0bT0NT/SFw95Crkrd/2fL+ViWZez7/p+7urraxygSsE3ZekdHx5clSRqmIT0IgusMw3iS0cBgghmHpk6dmmcNPZvNnkoTGJqEua77B9/316ZSqU6abPX39weapm3PZDJ/pDiR5h2qqr7e09PTQY0TY8xrmvZXunklSXrDcZwblyyZ7dFnWLRoka8oyjby3KM/kiQNkQ3DAQCaPHlySZblQbpGdMOmUqnl9XlGEAQrPM97wzCMVwAAl0qle0455ZQlAMDNmDEjq2nado7jqjzP11RVpd4Ua5r2AuG9EVmTM2RZxgghLEnScC6XO7+OJkQAwJ1zzjm2YRgbGU+LEUJlnudxEAQrv/GNb9iCIGwNw3D4fe973+R8Pt/FVm3pM2matpHUDhBlZjRNWxOG4SbDMJ5jol1ZFEX22VWCPj7LqldJjeKaVatWiQdT+BtNMmjyEIvF7mhqalrY19fXOHny5BJTFaXe/KOyLONcLncv9diw92i50cWtC/sVcpN0Gteo0cuyXEkmk18jLM3od+m6Dh/4wAdOamhouI8kftg0zbWFQmHRsmXLioIgDFMMyHHciCzLVcuyfs4wCBwJuzcRz1ZGCNUEQRhMp9M/c113Na0XEIx8vW3bOBaLbWMKX2VRFHE2m11IQrRC2KPPsQkmvY8w9GmBCIIg+Kgsy1gQBFrpLQMAtm37P+j3kvu7kfGANZIvvc6M40MUQmia9qt0Or1DFMU9oijWOjs7bzn55JMnAADEYrEfiaKIdV0fkWUZq6paEwShIklSpbW1dSbd/Bhj3jTNx9mqoqIoeMKECaewuRBRtV5FnFiZKSrWZFl+47Of/WzKMIybZFnGDQ0NHwUAsG17DevNOY6riKLI6pNkAiXfp6oq9jxvG1tJJ9Huh+QdygCATjzxxEZN03bVOcuaJEl4/PjxXQdRoX1LQ+553vXE62GO47AsyzgIgmtJ1s8DAFq7dq0oy/JG13V3maa5HermJtZh5XKdEnKsWYtlKgvmeR67rnvT8uXLNY7j4PTTT+8sFAo/NQwDEybi0Vwut4yKd2zb/qGqqpgWmSzL2pFMJndEUTSDxbQ9PT05SZLeIM9VQQjhWCz2Z9/378lkMnNp1CiVSr2iKGKe5yuM6pIK0i4nikoFAKC5uXmcKIp7qT3Js1Ti8fhnSBQSdF1fKwhCjWJPjuOqpmni9vb2GfR7GxsbT6yDBVQx+jOGnUBEihFzHGdDGIbPky6v2uTJk79x0UUX2ZMmTWqWJKnMeF0siuKwaZrYcZyvkvetEHbnNBrh6HOqqloNw/DPTDKNFi9enFFVdVedRKRCNuvVrut+TpIk3NzcfA0AQHt7+3SSsI5OW3Mcp+o4zvPEm3MAwF988cWqqqrPcRxXI8kni+Ofvvzyy3Xy3KIoiiw1W2HZNUmSXu/r60scrMYHAQDieR6y2ewZQRD8u+M4d4RheNn06dNNVjWXSqUWyrKMoyh6WRAELMtyzTTNrYRGqhKPVaGbhVCFL1mWda/neb+IxWI/tSzrVkmS1suyPFI3bHQEIYRN0/y97/vfNk0Ta5qGLct6tFQqnUWKWAAAMGHChGQsFns1iqJXaFQhv3sbg2kFAIBEIvFxBvtWOY7DURT9zPO8/6IzazDGnGEYd9cnW2QDPUng3GgyqOv6c+Te2chVk2W5Qjnl1tbWCaqqYlmWaySfqKmqisMwvJ9ELg5jLOdyuT8zvPQoO5HP589htEACACDHcRZ4njfoOM4rsizjbDb7/JIlS84lCfTP2T4AnudriURil6qqT5GaAk++UwiC4CkSgShVWtF1HWcymY+wGyKdTg9Qb844sxrHcSO5XO5aSZIqURQ9snz58hgpy/+CJQgkSXo9lUptDYLgM6w3T6VSFzE05ahaVpZlXCqVZrG8eCwW+6aqqphEbzbPw4Zh/O4QOtb25tc5joMxhgxxPM+Dpmm3eZ43bNv2a+RB8NSpU1fFYrGNNPkUBAHruv5MPB7/amdnZ+8ZZ5xhsfoKnufh4osvVru7u1sSicR5lmXdyXHcEN0opGiE8/n8fU1NTWeTqh2wiZtt25+Jx+PPG4bxPAnz2z3P2xaG4RmMcXCkwLGOpQYlSdoURdHN8XichlIoFAonMRh+dOFFUay1trbOpiH/5JNPNl3XvSsMw5scx3mQyQ9okewPGGOEEALDMK5wXXd7LBZ7lUKRQqHwRjKZPJ8png2QDcPCAqwoyq5Zs2alWOEbSWy/LYoiFgRhJB6Pl7PZ7H1XXXVVoampabyiKDVBEKp08wVBsMl13UoymTydNZxZs2bNlGW5zHjdqqIoNdM0n587d65OSYhzzjnHFkXxhWQy+QoDveg7LouiOCzL8sjSpUu7AADGjRvXTHKo0Q0UBMGjvu8/1NbW5gLTGqmq6kssxKWGy7RHSiQJ/kfDMB5pbGxcSe6hyjqDYrF4+uHKtVn5pcAyIJ2dnR2SJFXi8fgblO3wPO9PCxYs+EJHR8dHW1paznYc52fZbPaMgYEBYx8qRZm9KUEQIJlMnqPr+jAt+iCERkRRHGa0LRxzT2hgYEAyTfP+KIpupwYWRdFNpVLp1+PGjXPqytWnUlhAF9913TuiKLqto6MjTje2aZp3sF6VhvQgCK5jefHW1tambDb73vPPPz8hiuIbDEdcJqzCBwEAVq9eLWma9kwymfwTZROSyeRL+Xz+2alTp8YBgBsYGPBN09xGGKS9YIFpmrcTRmE0Ib/88st1TdNeIP++zfO8mud5X5YkCRzHuYbn+dFcQBTFkXQ6vdkwjLU0etDKayKRoJTpqL5JFEVMIRcAyKSS+0PHcUaampr+yOQre0G6RCIxQDet7/uXshFFkqTtURQ94Pv+ABslgiC4gOp0GBhSU1X19QULFiRYGXNXV9cMURTBMIyrmKhMc5gtAwMD1tGUJgskUfteLBarhGH4GsXUPT09l02YMOG7LS0tJfrAdVQkT7CywMgdIZfLTXAc55uxWGxjFEWvz5w58zvTp08/WZKkHQxkeGhgYEBhpbAkGVzgOM4zruveTcLuntmzZ3+mp6fnIkZSzK1du1bUNO0xFv/xPD8cRdGvoyi6nN5PqVSaTARCFIbUBEGoybK8p7e3tzhWQYI0ee9VIVQUZQ+VEBcKhZmGYeyIx+N3ECPZ09DQ8Fhzc/OP6DolEolLiRjuSYYGLBNP+KU62ALZbPa9dNMmEomtpmkOLVq0qGXq1KlxVVUHGVYHC4JQUVUVJxKJU0geIBNOfy6V99Jn1XW9EgTB9unTpyfpc5ZKpfdIkoSPO+64Ww3D2MXg6FEWxTTNp1evXq1SoZeiKC+zCbfv+/ckEol7W1paIqb+IiiKso5lcARBqBANSz2PzwEAdHV1tcuyPMzkCWVSSb/haDbHIwCAs846y5MkaZtpmiNEvIQVRdk+bdq0KwuFwj8xVF69XntUbtnf3x9LJpMfNE3zTs/zdjc3N99+6qmnfvi73/1uM5Vguq77Y6oAJNNzz6qvohmG8W+ZTOZWURRfBYCabdv/sXDhwtNpCbutrU0iWf1H68vVuq7/NZFI3J1MJmfTbiDf97/PeiKO48pkXs0P6krVdKOdULcxqJDrXgpbXNf9ged5z9i2/SjZBM9MmTLlP5qbm/sBALW3t7eqqoo7OzuvM03zpwy0qvI8jxsbG/tYuhUhBJZl/ZqujWEYQ77vr8UYK7FY7GN191+JxWIVwzDWrVmzhr4LfvXq1ZLjOI+z0AIhVNV1veq6LpVA8BhjUZblTYlE4skFCxZ8NwgCTCDRKKTjeR4XCoV++n7z+fz72ISa5/ndyWTyLtd1r2B58+bm5ukEItLvr0mSVNN1fRvpYmObUniMMW9Z1p/YKMtosi48XNiyz3J/Mpn8AGE+RuhOTKfT3+3p6fliU1PTFADguru7xXoxP8YY5XK54y3LutY0zdd93x+ZNGnS9wYGBjowxhwTAURSgPkUfZnE2/yZCb0wMDAgeZ53RyKRuJFGlUKh0N/V1fVBkjgjAOAuv/xyXVXVVwgFNYpboyi6NwiCP/T19SlEJqwpivJ8Hc9fk2W5TLh9tpOJP++88xymIltlIUAQBF+h96iq6tNBENwuiuJOhBBOJpN/6O7u/rfOzs6Q53lQVfWOxsbGbffff3+nJEn3sJ5QkqStCxcudNjy+8yZMzOyLA/SKiNCCI8fP/4TZILZ3UwhDMdisS2JRGJ3EAQ0B1EQQjBjxoyvJpPJV9k8RJKkPWEY7onH4/9AqVjP877JcRyeNWvWF4rF4nfj8firTLSoEMLgdlpBJ87n11QYSO5hUyqVWtfY2NjA5gee5321rnGeFs8urzNaCj0/U8dIYcKh1xoaGroPhlY86KYEnufBMIzfqaqKJUkqk2IEnj179j93dnZ+uv6LeJ6HefPm5X3f/6ymaZtM08Se5704efLkFb/85S/tuuohR5gPKla6iFX4SZKEJ02aRIs0EEXRDNd1n7Bt+0HCv7/Q39/f197efjrrzYkgDOu6vjMIgtcpxImi6FnTNL9EP6+hoaGnjj2hPPd/1oVFgRjBTxnIMlon4HkeNzQ0zCOf2a2q6o4oim6inzl+/PgbpkyZMkCcxrmyLON58+Zdd8EFF3iiKO5gv9uyrPtJhEOMWnGAMDfDhHr86+mnnz515syZEQnro8+QTCYfisViz8+fPz+g0aC3t/fCUqn0kGEY97ObKhaLPZHNZu+hzQqNjY3vJYWgtbNmzVqaTCZ/Zdv2cwxlXBVFkR0HiLq7u7NUYk059nw+vzmZTH6fLdq1tbU1khyjyhbPVFUdrIOIPADAxIkTuwldWqmDTdgwjA0YY2l/+PxQrJ8DgNr06dMzlUqlz3Xd7ZVKhccYczzP7x4cHPS3bt16b39/v9zb21ucOXPmlHg8frpt2z+/8847H9m1a9dXXdd9ePbs2cdv2bIlf999931r6dKlr1erVcSMoq596UtfGp1xHovFLOb7q9VqFTZs2DCN/odKpdIryzIMDg4mCNS5FQAad+zY8RgAwOOPP15dsGBBYuvWrZ+t1WogiiIaGhqSCS6WBgcHU8VicTVdoMHBwZ5arQbw1px1jud5iMVi/1qr1VjNTaWxsfGsnTt3nk4Wnm4ADACcKIrbJk6c+AAAwI4dO44TRfGNwcFBBwBAluWtoiju3LZt25/Wrl0rbt++/SsYY9i8efP1d911lwcAFjCnd3Act4HcEw8Atf7+/tiuXbvOwxjjWq1GNUp/am5uXv/ss8+2VqtVidw/x/P8HoxxDADu/M1vfrMFIVSbOXPm/3nkkUcuxxg/ValUJtJ7RgiBruvP7t69e+OmTZs2zJo1K75p06bvy7K8I5FIPLx+/fohQRAKe/bs8Ul0rgEAJ0nSHU8//fQa4qXx5s2bF9RqNRkAKhhjpKrqMEmMf0yNFyGEh4eHLx0aGkqR76ez7ZEsy3f+6U9/epb8NwwA+IorrlCffPLJH5fLZaGuT6BGnOm9HMeNkDXCRwW22LZ9gWEY2Pf9bZRl0HX9sXw+/5OGhoZftLS0/NnzvN2GYWCqPCMdNm90d3dfPXny5HYWp+2vQus4zjWMd6MTuS6nCZxpmqsTicR2nueHOI7D48eP/9DkyZMvJLCJ43ke0un0tZIkYUmSRpLJ5HrCA1cVRalZlvUAG3JN0/whG0EInn5txYoVFhV5keSsU1XVPXUFIpYl+S1V8GmatjqRSKzTNG0TScoenTt37r9jjMUgCL5E+N9HOI4D13WXsqP2yL9dwUKOeDz+VfI7I+S7Np544onLAAAsy/o8207mOM72RCJRsSzrfQAA55133gnxeLza1tb262XLln1V07QNjGx2dzabvTGRSHyOcOA3kojwSltb26wwDD8eBMFrHMdVaZ1EkiTc0tIyl9WeU+6c3oNt2y+m0+lbGCgLM2fOPDWdTr9CRV51WHsFI76jkfPf69SemP2bVCr14aOJzzmMMSfL8v3JZPINXdd3EyOuEVgw5DjObk3T9kDdqXKyLFcVRakoioJJmfef9kPsIwCANWvWKNQ4WLF9KpX6Ef13wzCeZfDl6zNmzDilVCpR/Tccf/zxU0VRHAnD8AHbtrdkMpmXCWwpR1G0k9JhACCsXLkyRl58jdXlGIbxewKvJCoH1jTtqTpcPrrwRG57MaVLDcO4PwzDpwVB2E20KE81NTV9r729fYYsy1Wm8wpls9l/YF4gxfoX0PXv7u7OyrK8ixGWVVtbW68/44wz0gCA4vH4dexG1TStaprmjjVr1gjnnnvuCZ7n7VBVdd2UKVNuuPTSS7t4nn+a3r8oipuCIPh9NpttK5VK7yN1kCp1Brlc7kbHcV5joY5lWX8ga8MDABBm6ylWjJVIJMqFQoFSldDR0dEZj8dfIh6YNdqaIAiY5HijNRLP8z5Nawt1vcM1IsYrd3R0tBwtfC4CAEyZMqVNkqSapmlDdV9aZV+6oih7TNO8K5VKfTGXyy3o7e1tO+WUU1pSqdS0ZDL5eV3Xa9ls9qx9nD/Ek4x8Xl3Rhhr61QSf95KXQRf9tp6enrNoMrx8+fKYqqobZFneM2nSpKvp+UhkU5QTiUS5WCz2Us/vuu71dXibKh8H6D3Onz8/MAzjvno5MMv/SpJUoXnEihUrLE3TNlPdEEKoGovFcFdX1xWapj1MStwb+/v7DRIpLmCmHlQEQcClUmkJldt6nvcfrLf0fX9LX1/fmTQXMgzjNwwjQaPLL3t6eqZrmjakadqWUqn0XEtLy/cEQQBJkmjijT3PezaTyfxXsVg8hUgkKqScP2nu3Ll6sVhcpyjKHpZpKRaLp7CRbvbs2UVmZGGNqFJrtLXtoosusi3LeqpeKkJZH0VRXiI1F45IEy4i76xcLwBkFJMPMcNqj4hO5Einuep53tWMVBWzQnoyS+OhRCLxyfnz5zfUdXrvdbW1tfU6jvMgWSA01iQB0zRvYatkNEyZpvllksR9nNzDIADgxsbGb/X395+bTCY9hBC0tLR8ned53NLScm1HR8dHWCZFURTsOM42UqyBIAjOIl5jVBRGDa2pqWkpCbcFy7IepYZGYVmdWA0bhvEQFaPZtp3jeX6Y1WNQARTtSmJav6CpqemjjKFXBUHAHR0dc8lLP5kRjVU4jsPFYvEhttmabIQq03KGgyC4l1QesWEYu9rb2x/p7+93McbINM2/UDWmaZp7wjB8QVGUrXQNPM/7N/K5s/L5/BbSPUWp2RdY9SHVtjAtczXSg/pKX1+fQbqGbqAScMdxNnIcV2Uhn2VZt9Nqueu6A6R4VmFk16yGqkx0St85UtgyGgYaGxv7Ojs7/8U0zR11gp4az/PYMIz78vn8YtIGVl/9ZI9rGeXTx48fvzidTqtjNYDk8/kTKfvBVt94nseZTOZ9hJH5CTU6hFCtu7v7c1OmTPlH4nknx2KxQVVV8XnnnddXKBTOrzcgTdOeIBuig8CBMtPNQlWUtbPPPruhsbGxT1GUzSz+jcViL/A8PwJ7j+urua57GfM8WdqtVSdoq5EXeysLiwqFwj8wdFtVFEU8bty42VdeeaWs6/rzDG1YliQJJ5PJOaxmJJfLfYAOHGU6tkbXz3Gc3WecccY0tnpJnne4DoJVdV3fsGzZMofoxM9Lp9ND8NaJgjgej/9fpteTTiPoo/gd3jy7CruuezOBcD+hjlHTtMdnz549QRCEMrGlEbK2P1q9erXqOM51DFypkg6uZxgmBzMRb/GRGDrtkNc6OzsvbGtru9s0zY3UqBjjq2YymceWLFnSUGfcB8JK3BiNvogWMnRd/2ud3rlGDG9o5syZGY7jgE7oJdqS4eOOO+5bra2tp61du1Y0TfMxErYfwxjzqVTqIobXrZAwecOqVatiqqpuoN41Ho//TJZldiR21XXd24gCDwPAMOkq+mOxWPwcKyVFCFVFUcQtLS20uAPJZDJDpcOMPIB2C+2cPXt2keWVU6nUe5miVoXneTx16tQFQRB8k01SyYjorzGGhgCAW716tWRZ1p/YDUkNyTAMXCgUfsT+zaxZs+LMgNIR8lORZRm3t7dTyQV0d3dfGIbhqH5fluXKxIkTu2Hv4UcwadKkCaTSynLsd9i2fRPtaZVluZLJZGaSQtqNTJ0Ei6L4lGVZjzGJ5wjHcTibzX7KMIx76vsYZFneSWjTwyr78wAACxYsSHR1dV0ZRdEGURT3SjBpCdgwjGpHR8evAEAgpX10iLBorzyAeJmr6sZCj+qyTdP8DTmIFzmO8wiTiO5ctmzZNxYsWDBf07RfUqVkLpdbQsrlC5mwTzUud7muexv9DtM0H5ckCeLx+KcYPQzbzEsH47y+fPnyrGmaLB6meHHz+eefT3U9CGMsaZpGPdEw672CIPhi3dwWmDx5ckmSpBGaaBGvv45UXtly971MlZMdYgrNzc1JutHJdw1TjpyM3EAsJO3q6sqrqvogjWaiKOJcLnceM8cHfehDH0o7jvMcXTtZll+++OKLVVbtCgCIKbhVWNUqMfJBUtq/iOZm7e3tDZIkbR1j2vKokbuuu+qkk05qJNXYGptHxWKxmw/rBHHaVNHS0tI3fvz4X5umuXVf3UAAUFEUBTc0NHzmKFA7IimunMYkH3uNoCPNDovqEi9Kc+2ZNm3abY7jUHiBHcf5HRVCLVu2zCE66hqFKPQFIITKiqLs6ejo6KRJXy6X+ziZfEW9zQjpytnR3t4+va+vL60oCma15wBQc133B/XhvFAonKooyl76fMMwniMtbGyzN21QX8NWg2Hvg4Sxoig7uru79zVTniM0omPb9s30MGJd1x9rbm7Oj/E3HADAqlWrNM/zvqbr+n8ynpyvm5NDHUDZNM2/kDzkbXNjEonEPzL5S5ms3TDpL/g+I4rjCK7vMgzjaSaqDNNo4LruDYIggOM4X2TzNJqjRFH0YTZHOCRP3t3dfXwul9tCGQpa6ZMkqT4hqAmCUG1qauraz1iEg+bnW1papomiuBvePqqa0nz05DmRwKpPkWRlqK7Ro6yq6u4TTjihgW2G9n3/YySssnr3qiRJOJ1OL2O9K0IIGhsblymK8jIpdmDDMJ7s6OjoIYWpL9R5oSpJLOczqkyeJomtra1TPc/7lqqqOw3DeLKzs3PqGEbHw5uTcacqirKHeR5WKLazUCjMPMB6c5TaTKfTH8zlch8nCeu+PN/B/DceY8xRFsT3/f/cx6ELiDSrf0DTtE3UoUiShMMwvIqpLiP2Gfr6+tKWZd0hCALmOA6Loohd1/3xunXrpDVr1giapj3COlxCflQmTJjQSO5BgoM55ZCOFu7t7Z1aKpXWSZJEu2WqgiDgZDL5z5ZlPcxg4irBqs+tXr1aOtIi1KRJkyZomvZaPTdNDZfneZzP5+exJeSpU6fSs0ZZg6iS0Pv+OmPgEELQ1NS00LKsOyVJqpGuqcF0Ov3RMV6aQJiWKAiCD/q+fzp9ThJNHmD7R4m3f0IUxX0+I0IIFi1alCWefF+YEhHd9bggCL6iqupGQRCwJEkV27b/0NXVNf4gnQo6xCr4gQaNjs5qLBaLFzU3N08/0CaZN29eFEXRlxOJxDcbGxtPJEa+z0m4GGOuUCj05/P5LxQKhbk0h5s+fXozmWhWYx2fbds3MXN+xpKAozFvbPr06Q3t7e33khELVMxUSyaTHxRFEQRBeKJ+1EMsFvvVPrjwg4Yr+Xx+KqG0xjRy8j0/rfsejhQfWhzHuUGW5a2kw2mY0I5j3RNHDbWrq2t8GIZnTJ06tamuCVuo/zs6iHP+/PnBtGnTJjY0NHxYFMW9ehVJdXhjJpP5YTwe/yfDMD7S3t5+fH9/f7CPoUsHmjgLCCEYGBgwmpubJ02YMKGV0QQd7Frv1Y0ER+dCh4IODrDRxlxv+uyLFy+2586dW/B9/6q6+kaVwJqHs9ns933f/4JlWeeVSqXZc+bMydbR2nsLqVavXi319vZeZ1kWfYFlWZaHW1pallIMR6uGtP+T4zicyWQ+fRj4fBRTNTU1LRRFcSdr5MxsvioxoM39/f0BvH140WgH1IIFCxLt7e3HT548uXQAQxprfuReUgSO4+DKK6+02tvbpyeTyUuCILheVdXHZFneJUkSZvlzBsrV3zsWRRErirLFtu1fFovFU5j5NAdjqNxYsAD+Pg4MFg7yPtiNxu+LlSPkAj9jxoz2MAw/Eo/Hv2ea5l2KorwoSdJQXXslrufU6XoTR7fHsqx7ksnkJ/v7+xN1yTJAZ2fnp6MoGiIgvyyKIm5sbKRnAkk8z4Ou6/fBW8269NyghYfoZUano6bT6QtEUazVGznJ/Cu6ro9IklRlOov2Nxr6UIRqiBSqZFZh2d3d3ZJOp1cYhnGjrusv1ht1fc5QV4qu//chyp/TYpplWfdOmjRpwiGWqhEc3gnbf2/XXpCI4zg48cQTM9ls9kzHcX6squoTsixX6HyeMSrOrKHXGM8+DG8O2xpkawdkjs2WIAg+TSIhgvnz5weqqm5hEjTsOM6PSMgdFeKk0+mllIkgZ+VUHceZcQiGLgAA3HzzzbLjON+SJAmT06Zr7ANIklQJgmC3JEnsiDbhKBnE6MbgOA56enpy2Wz2QtM0/yjL8kjdIu/FMlEGo37RyRyUFzRNe1LX9a2iKFZJyZ9lHuiIvx0NDQ09R1M3/b/AwEcj79KlS8OGhoazbdu+WVXVXXWOpMIU195WCWW9N2myx2Tyc71DoswNJhLj6zDGAmSz2QuZAkNNUZRXSEWMhQqIMBF9qqq+TBgAPG/evPaDeGmjDztlypQuRVEeVBQFZ7PZjUQXUaOzYFRVHYzH47tc18XFYvHzR/E4Ra6+0uv7/nWapu1kFmkvwxZFEcuyvFlV1T+EYXh5W1vbGbqu/4WBKlTbsnvBggU5jDG/fPlyv729vbVQKJyaTCYvUxTlAcpeIYSGCF//VzJF4J18POJeBt7c3Hy84zjXKIryKuMsaqwXpgJAVVV3KIrykO/7P1cUha3wUkf4xnHHHTdzxowZXbIsn9DU1HR6Op0esCzrZkVRNjPHCJURQiM8z+NEIvEFOvCyBgAjZCLSviSPPBV26br+gG3bPycd+Wg/WT7PUF2flCRpj+M4Q/l8fj0pu2NN06rkAV7wff9Pvu+/fvrpp59DGIwj7f9D7Gdks9kZ7e3t10dRNMio9sqapmHTNLFpmi+6rrs6iqKPTZgwYdK3v/1tgyaTixYt8mVZ3qUoCi0kVSzLwmEY/mxfSkyMMWpra5tFNByjZet8Pt/1DvXqezmUQqGwyPO8W6j3pR5XFEVMf1RVfS0Wi92SSCS+0NTUNOfss89O8TwP48aNm8PMwMEIobKqqtj3/V+M+cUcB5dccolZKBTea1nWHWyBUFXVp0CSpFGKTlXVDRhjcT/GO4qx90Pt8Cw8aG1tna1p2t2iKOIoijYlk8nNbOgn07YeDsPwt7ZtP3PuueeePgbfekRanVwuN765ufnbhULhBcdxyqIoDhqGMZxMJoebm5sfbWhouDqZTJ60YsUKa4znEgcGBjjLsr4ZhiG2LGsn8TCVKIpwqVSaD2+fksCzbAep5P6YwfSHAvn+N3lxauBzGhsbf5XJZF4nhbWqKIpDnucN+r6PPc97JgzDbxeLxYUXX3yxW7/mHMeBqqp3u65box1TZBgUzuVyS8kaS8w675XgCoIAmUzmMzSamqa5HSzLovw1tm37+oOgC7kxqKa9WAKe56Gjo6PHtu2fS5KEXdcdzGazL6mqOlyXUNSCILjFdd3b4/H43StWrDiR0TejI130NWvWCJlM5vKGhoYNYRi+JIriG5qmbSkWi0+3t7ff0NXV9UE65qLub1kxGpozZ05M07Tn0+n0/WRyV8X3fRxF0YNkchk6EI26fPlyX9O0nTzP4/b29tZ3kEcfZYOy2Wxbc3PzdxoaGta7rjvIcdywoijbk8nkzkKhsKm9vf1fWltbF8ydO1evnxPEFH64tra28Zqm1bLZ7JO0L1bX9Zrv+xsXLVqkHaAOMXrYQhiGVyOEarqubwVZliltiFOp1GVEsyIe5MPttZMwxkKxWFxo2/ZNtAqpKErFdd1tzKRbirW2ZbPZ34dh+GQ+n7/ujjvuiJjh+0dKf0FnZ2fB87zbfd/HgiCMEOYDt7a2XtPa2jpnjKrkPk+/9n3/Y47jvGBZ1gPEu5SjKMJRFP3DQSTLtJHbVlUVW5Z1J6Ea3wlGPlqbSCQSF+fz+RcSicTLHMftFARhdyaTea6tre3WxsbGT6XT6cYx1rZ+zWmn13ccx3nONE16YEHZ930chuHXD5KcEAFAaG5uPoN0t60Bz/P+lWa28Xj8u3WnqwmMEQhjEfw8z0Nvb28xlUp9xjCMdexxg4yWfJSK4ziu4rrus6lU6j7bttc3NjaeR+DSUTPybDY7PQzDzWR02Z4oiir5fP6+XC63pO7oyP15YwQA3NVXX60YhrE+Ho//VlXVIVEUsW3br+Zyufuz2axzgKQSAQA/bdo01bbt1YZhPHGUjov8u4EquVzOjsViP/V9H0uSVON5vqYoCk4kEg9PnDjxw7lcLjFG3rYvb4zOOOMMS1GUl5LJ5G/IHE4sy/Kg7/s7Ghsb2w4yEnIAAIZh3KgoSmXSpEmTobe3t0TUiTVZlrfncrnzly1b5uwDgwPHcSCKIowfP74pnU5/yLbt38iyvIfJpuvHQ48K8XmeL1uWVQmCYLdt278plUotbyP1j3Dhm5qajgvDcItpmjgWi21ramp6qaWl5dN0aM+h0qGu634sFou9aFnWvaQItCeVSm1IJpOfPFhvPnfu3EI6nf4HZl4keicYeXt7e4Prug/HYjGMEBp2HGd3JpPZk0qlvt7W1pao+33uYNY7CIKVlmW9ZNv2XzRNw5Ik1ZLJ5POpVOonBzlXkRsYGOBaW1vPjMViT7S1tc0arUyFYfjPVHpLKJ6XbNv+aTKZvKCrq2vphAkTTi4UCmeGYfj5WCx2nWmaD0mSVN9lM9rVUseDjspLSRfSi7Ztr2DPiTxaC9/S0jLN9/3dhmEMOY6zo6Wl5S+5XO6EQzTwUW8+MDCg6Lr+XCKR+IOqqkOyLGPLsjZns9l7iac6nA36jvDk48ePb/N9/znXdbGqqlszmcz2Uql0B6vHP4RcCwEAd8UVV6iapm1KJBK38jw/KIpiTdO0Lel0+skwDGcf7Dvs7+/n+/r6Gplq9JvkyKpVqzQyRL/KCPYxVe6RQZZjVa2o7vht46DJSObRiqeiKCNBEPzfpUuXhgwWPxovnYM3mwhStm2/HIvFqoZh4JaWlj8yA3MOVe9BsfnHbdvebNv2/ZZl1WRZHk6lUo+PMS7tYF6k8A7w5HTuZslxnJdd161IkrQzl8ttKRaLV+VyOftI1tvzvPNisdgrtm3/0bIszPM89n1/fRRFvyfnrx72MfKjX9LQ0LCEnHhA59qVmbHP9KfMeO4ajFGepf1/1IMbhvGibds/mDBhQmcd/j9qHoaMgbjZsiwMb46le5yZky0cxsvkFi9ebOu6/nwURbcJgjCk6zpOpVIPhGF4Jz0f6B1c8Nmn1508ebLn+/7jQRCMKIoyWCwWX4+i6NOHETXflgvpuv5cPB7/naqqrzuOU5YkaWsqlXo0lUqdeRifPeb74TmOgyAI/h+BI9TQ2f7Qt5VkKSYXRbGsKMpo+VaSJBxF0e29vb1nXXnllVadgR8146CJ5dKlS5e6rkuPVNnR2dlZOgJYJJDZht/0fX+jaZpPw5vN1490dnbe4nneJe9ADvygHUoqlfp1LBbDHMftsW0bNzc3X3iE75Z6809ZlvW67/t3k1Ooh/P5/F2+7/92+fLlB3Vcy0HvKo7jIJFIXKYoSrXuxIoK8e6jHp7juGoQBK/RpgxN07Asy9XGxsabjj/++BmyLMMhJiOHc89o7dq12vjx4++SZblGdOvLWf76cMJcPp/visViuwmPixVFeWPKlCnX+r7/e2Zm+LvJm9Oe0NMcx8GSJA0SHclXjzDPQvBWB9grURTdI4riEADg1tbWWwqFwt2O45z2t3AsCCEEEydO7A7D8Luapm2QJGlUOCNJEjZNEyuKQhPL3aqqbtB1/cZUKnXxpEmTOiRJ2ota+1sZBPXm55577mzHcXbDm11IDzJHM6LDWHR+3bp1kmEYD4RhWBMEgR45vrFYLN6dSqUWvAu9OQIAdO2111qtra1/UVW1RuY9/oEQCkeSewgIIYjFYt8MgmCH4zjPwpu9oC/29PRc4zjOjexRm3+T3YsQglWrVmmTJ08eH4vFlhaLxY90dnaumDFjxrIwDBc3NTUd19fXl7/55pvlOiryv4sj5gEAFi1a9BF6uobv+0cyOlhECEEURZeTFjDatzqSTqfXp1Kpb70bIQt1KAsXLjzd8zzKa++ePn16wxGySPQox0mGYYwkEonXKDQOguDhfD5/90G0DR6V7Jo/xN8X4L+XOuN4nocZM2Z8jix+ddq0aRMPc2HoCRaLSUW3TBmjeDy+uVAo3BNFkf8uhCyjWp2JEyf+lEJZx3GuPkJlKQIA/oorrlBVVX2cCLzoCYHDuVzusUwmc9V/p2NhS/0CvDXWgmdwN/qfegGkQ/wawvBsISc1w+FQW+PGjRunKMrrAFClsmHDMLY2NDQ8WygUprxLE1Bq6GoURWspk0a48iOBFCI55ePrzGCpGrw5Gm99FEUPkoITB+8O3f6BDb1YLP4W3uTtX2psbDzUM2wEEpZTmqY9B0wHkSzLw0EQ4Gw2+6EjTLj+1160af76669Pep63kazL1osuusg+DIey15q3tbWdTKMnkEKjqqov5/P5zVEULTnajuV/627BAMDXajUYHh4eJpSmWywWQzh4flsEgMq8efPyd91112179uzJkwXnEUJlTdMkRVGu2LRp0w/Jy6m8W73Kpk2bsiMjIxYAgCiKL3zzm9/cybyHQzXySnd3d8uzzz57zcjISI16bY7jKrZtC+Vy+Scvv/zyr8jvVt/thg4AgGq1GtRqtRt5nkflcll6/PHHj6eb4ABJEEIIlUulUu+dd955+86dO5upkRN8LgLAT1588cVPkv9WfTca+OOPP44AAHbu3OnwPC+SKLqN9Ppyh2Pk/f39wVNPPfXLoaEhm7wrjgj9hKGhoU1z5sz5ApnfU4Vj11u01/Lly2NkvktVUZTn586dS48Rl9jcgoUepBHiE+R8TXY+S1UQBBwEwb/WH3f4brwo4zJ9+vSTHcfB8GZH2JPEEA8ZIp5++ulJOpEY6g4M9jzvxQkTJuTeAQ74b3JRimoZ003yh3POOcd+264gYxUKhcJJmqbdwwjSRg8ZIF1Qnz1m5HtH/BkzZmTJAQ81QRDemDlzZnSQieJoQ86cOXNaLctaB3vPlqeHGu8oFouT3qUJ/8EbOznw9VbaJa6q6oZkMvn/giA4h+f596bT6Q8lEolvGIbxCDNqjw7LrwAZENrU1LSA6bBCx5b2TWPlOA5isdjviQfGYRheStZprON5WKYOEEJQKBRO1TTtddh7XAjl5F9nJn8Jx5Z7/14DTZ48OaFp2pOsdJgOEh1DTkyFa5g0Uqw++eSTk8cWe79Rc4YkSRWEUEVRlEpHR0ffGMaN2Ah6wgkn5Hzfv4p1LqyR67r+bGdn54Rj636IIXbBggUJ3/e/oyjK9n0MH9prTotpmvflcrklhzHu7V1n7AghCILgSjpcVVGULY2NjWcMDAwYgiAAz/MgiiKsWrVKa29vn+z7/tcVRdlOB9LCW1PeqjzP41gs9jtGYXps3Q8xOR31JOl0+qOmaa42TfMRSZJeVFV1u6Ior+m6/kAikbgql8u9hx7BcgyPH9Ta8osWLdJ0XR8d1C8IAtZ1/QXXdf9omuZvPc+7R9O0jVSSAXs35NCx1ziVSl3GrP0xIz/cF8KGT0EQ4Mwzz9Q/8pGPhOedd55Td4DvsYU+xKjZ09PTYhjGhv1FTHhrONFoxZMcAfRoe3v7iUe58eZd/1KE/RixcCzhPHxj7+/vD+Lx+Fd0XV8viiLen9ELgoAVRXkikUhcTCaUHUv2/4Zenv05dh0FYwcAGBgYsEql0hJd11cFQXCb67qPGobxYiwW2+Y4zsO2bf+woaHhZHJ63f9oBP3/p9QmgDq5xlkAAAAASUVORK5CYII=" alt="Bugwang"/>
+    </div>
+    <div class="seg">
+      <button id="tab-study" class="active" onclick="showTab('study')">캠스터디</button>
+      <button id="tab-qna" onclick="showTab('qna')">질문방</button>
+      <button id="tab-rank" onclick="showTab('rank')">랭킹</button>
+      <button id="tab-admin" class="hidden" onclick="showTab('admin')">관리자</button>
+    </div>
     <span class="who" id="navWho"></span>
-    <button class="icon-btn" onclick="openPwModal()">비번변경</button>
-    <button class="icon-btn" onclick="logout()">로그아웃</button>
-  </div>
+    <button class="btn-util quiet" onclick="openGuide()" title="사용법·패치노트">안내</button>
+    <button class="btn-util quiet" onclick="openPwModal()">비밀번호</button>
+    <button class="btn-util" onclick="logout()">로그아웃</button>
+  </nav>
 
-  <!-- 캠스터디 탭 -->
+  <!-- STUDY -->
   <div id="view-study" class="wrap">
-    <div class="study-top">
-      <div class="count-badge">
-        <span class="dot"></span>
-        현재 <b id="studyCount">0</b> 명 참여중
-      </div>
-      <div class="controls">
-        <button class="ctrl join" id="btnJoin" onclick="toggleStudy()">캠스터디 참여하기</button>
-        <button class="ctrl" id="btnCam" onclick="toggleCam()" disabled>📷 카메라 켜기</button>
-        <button class="ctrl" id="btnPrivacy" onclick="openPrivacy()" disabled>🙈 화면 가리기</button>
+    <div class="study-head">
+      <div class="count-pill"><span class="live-dot"></span>현재 <b id="studyCount">0</b>명 참여중</div>
+      <div class="attend-pill hidden" id="attendPill">📚 <span id="attendTimer">00:00:00</span></div>
+      <div class="study-ctrls">
+        <button class="ctrl join" id="btnJoin" onclick="toggleStudy()">참여하기</button>
+        <button class="ctrl attend" id="btnAttend" onclick="toggleAttend()" disabled>출석하기</button>
+        <button class="ctrl" id="btnCam" onclick="toggleJitsiCam()" disabled>카메라 켜기</button>
+        <button class="ctrl" id="btnFlipCam" onclick="flipJitsiCamera()" disabled>카메라 전환</button>
+        <button class="ctrl" id="btnPrivacy" onclick="openPrivacy()" disabled>집중 모드</button>
       </div>
     </div>
-
-    <div class="study-layout">
-      <div class="video-grid" id="videoGrid">
-        <div class="empty-study" id="studyEmpty">
-          아직 참여하지 않았어요.<br>“캠스터디 참여하기”를 눌러 친구들과 함께 공부해요!<br>
-          <small style="color:#4a5285">※ 마이크는 사용할 수 없고 채팅으로만 대화해요. 카메라 없이도 참여 가능!</small>
+    <div class="study-subtabs" id="studySubtabs">
+      <button class="sub-t active" id="subt-video" onclick="showStudyPanel('video')">화면</button>
+      <button class="sub-t" id="subt-chat" onclick="showStudyPanel('chat')">채팅 <span class="chat-badge hidden" id="chatBadge"></span></button>
+    </div>
+    <div class="study-grid show-video" id="studyGrid">
+      <div class="video-area" id="videoArea">
+        <div id="jitsiContainer" class="jitsi-container"></div>
+        <div class="study-empty" id="studyEmpty">
+          아직 참여하지 않았어요.<br>"참여하기"를 눌러 친구들과 함께 공부해요.
+          <small>마이크는 꺼진 채로 시작해요 · 카메라 없이도 참여 가능</small>
         </div>
       </div>
-
-      <div class="chat-panel">
-        <div class="chat-head">💬 채팅</div>
-        <div class="chat-log" id="chatLog"></div>
-        <div class="chat-input">
-          <input id="chatInput" placeholder="메시지 입력..." onkeydown="if(event.key==='Enter')sendChat()" disabled/>
-          <button onclick="sendChat()" id="chatSendBtn" disabled>전송</button>
+      <div class="chat" id="chatPanel">
+        <div class="ch-head">채팅</div>
+        <div class="ch-log" id="chatLog"></div>
+        <div class="ch-input">
+          <input id="chatInput" placeholder="메시지 입력" onkeydown="if(event.key==='Enter')sendChat()" disabled/>
+          <button class="btn-pill small" id="chatSend" onclick="sendChat()" disabled>보내기</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 질문방 탭 -->
+  <!-- QNA -->
   <div id="view-qna" class="wrap hidden">
-    <div class="q-toolbar">
-      <button onclick="openAskModal()">+ 질문 올리기</button>
-      <button onclick="loadQuestions()" style="background:var(--card2)">새로고침</button>
+    <div class="qna-head">
+      <h2>질문방</h2>
+      <p>문제 사진을 올리고 친구들의 답변을 받아보세요.</p>
     </div>
-    <div class="q-list" id="qList"></div>
+    <div class="qna-bar">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input id="qSearch" placeholder="과목·내용·작성자 검색" oninput="onSearchInput()"/>
+      </div>
+      <div class="sort-seg">
+        <button id="sort-new" class="active" onclick="setSort('new')">최신순</button>
+        <button id="sort-old" onclick="setSort('old')">오래된순</button>
+        <button id="sort-ans" onclick="setSort('ans')">답변많은순</button>
+      </div>
+      <button class="btn-pill small" onclick="openAskModal()">질문 올리기</button>
+    </div>
+    <div class="q-grid" id="qGrid"></div>
+  </div>
+
+  <!-- RANK -->
+  <div id="view-rank" class="wrap hidden">
+    <div class="qna-head">
+      <h2>공부시간 랭킹</h2>
+      <p>출석해서 공부한 시간이 쌓일수록 순위가 올라가요.</p>
+    </div>
+    <div class="rank-period">
+      <button class="rank-pbtn active" id="rp-week" onclick="setRankPeriod('week')">이번 주</button>
+      <button class="rank-pbtn" id="rp-month" onclick="setRankPeriod('month')">이번 달</button>
+    </div>
+    <div class="my-rank" id="myRank"></div>
+    <div class="rank-list" id="rankList"></div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="view-admin" class="wrap hidden">
+    <div class="qna-head">
+      <h2>관리자</h2>
+      <p id="adminSub">학생 계정을 관리하고 권한을 설정합니다.</p>
+    </div>
+    <div class="dev-stats" id="devStats">
+      <div class="ds-main">
+        <div class="ds-label">전체 등록 기기</div>
+        <div class="ds-count"><b id="dsTotal">-</b> <span id="dsLimit">/ 25</span></div>
+      </div>
+      <div class="ds-bar"><div class="ds-fill" id="dsFill"></div></div>
+      <div class="ds-sub" id="dsSub"></div>
+    </div>
+    <div class="qna-bar">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input id="adminSearch" placeholder="학번·이름 검색" oninput="renderAdminUsers()"/>
+      </div>
+      <button class="btn-pill small" onclick="openAddUserModal()">계정 추가</button>
+    </div>
+    <div class="admin-table" id="adminTable"></div>
+  </div>
+
+  <!-- 모바일 하단 탭바 -->
+  <nav class="tabbar" id="tabbar">
+    <button class="tabbar-btn active" id="tb-study" onclick="showTab('study')">
+      <span class="tabbar-icon">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="12" rx="2.5" stroke="currentColor" stroke-width="1.7"/><circle cx="8" cy="12" r="2" stroke="currentColor" stroke-width="1.5"/></svg>
+        <span class="tabbar-badge hidden" id="tabChatBadge"></span>
+      </span>
+      <span>캠스터디</span>
+    </button>
+    <button class="tabbar-btn" id="tb-qna" onclick="showTab('qna')">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M5 5h14a2 2 0 012 2v8a2 2 0 01-2 2H9l-4 3V7a2 2 0 012-2z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      <span>질문방</span>
+    </button>
+    <button class="tabbar-btn" id="tb-rank" onclick="showTab('rank')">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M5 21V11M12 21V4M19 21v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>랭킹</span>
+    </button>
+    <button class="tabbar-btn hidden" id="tb-admin" onclick="showTab('admin')">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M5 19c0-3.3 3.1-5.5 7-5.5s7 2.2 7 5.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span>관리자</span>
+    </button>
+  </nav>
+</div>
+
+<!-- rename modal -->
+<div id="renameModal" class="modal hidden">
+  <div class="modal-card">
+    <h2>이름 변경</h2>
+    <div class="mrow"><label>학번</label><input type="text" id="renameId" disabled style="color:var(--ink-48)"/></div>
+    <div class="mrow"><label>새 이름</label><input type="text" id="renameNick" placeholder="변경할 이름 입력" maxlength="20"/></div>
+    <div id="renameMsg" class="msg"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeRenameModal()">취소</button>
+      <button class="btn-pill" onclick="submitRename()">변경</button>
+    </div>
   </div>
 </div>
 
-<!-- 화면 가리기 오버레이 -->
-<div id="privacyOverlay" class="hidden">
-  <div class="big">집중 모드 🌙</div>
-  <div class="timer" id="privacyTimer">00:00</div>
-  <div class="tip">캠스터디는 뒤에서 계속 진행중이에요. 옆 사람 눈치 안 보고 공부하세요!</div>
+<!-- add user modal -->
+<div id="addUserModal" class="modal hidden">
+  <div class="modal-card">
+    <h2>계정 추가</h2>
+    <div class="mrow"><label>학번 (5자리)</label><input type="text" id="newUserId" placeholder="예) 30129" inputmode="numeric" maxlength="5"/></div>
+    <div class="mrow"><label>이름 (선택)</label><input type="text" id="newUserName" placeholder="비우면 학번으로 표시"/></div>
+    <div id="addUserMsg" class="msg"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAddUserModal()">취소</button>
+      <button class="btn-pill" onclick="submitAddUser()">추가</button>
+    </div>
+    <p style="font-size:12px;color:var(--ink-48);margin:14px 0 0;text-align:center">초기 비밀번호는 1234로 설정됩니다.</p>
+  </div>
+</div>
+
+<!-- privacy overlay -->
+<div id="privacy" class="hidden">
+  <div class="lbl">집중 모드</div>
+  <div class="tm" id="privacyTimer">00:00</div>
+  <div class="tip">캠스터디는 뒤에서 계속 진행 중이에요. 옆 사람 눈치 보지 말고 공부하세요.</div>
   <button onclick="closePrivacy()">화면 다시 보기</button>
 </div>
 
-<!-- 비밀번호 변경 모달 -->
+<!-- 안내(사용법/패치노트) modal -->
+<div id="guideModal" class="modal hidden">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 style="margin:0">안내 <span id="guideVersion" style="font-size:13px;color:var(--ink-48);font-weight:400;margin-left:6px"></span></h2>
+      <button class="btn-cancel" style="flex:none;padding:8px 16px;font-size:14px" onclick="closeGuide()">닫기</button>
+    </div>
+    <div class="guide-tabs">
+      <button class="guide-t active" id="gt-usage" onclick="showGuide('usage')">사용법</button>
+      <button class="guide-t" id="gt-patch" onclick="showGuide('patch')">패치노트</button>
+    </div>
+
+    <!-- 사용법 -->
+    <div id="guide-usage" class="guide-panel">
+      <div class="guide-sec">
+        <h3>📷 캠스터디 참여</h3>
+        <p>캠스터디 탭에서 <b>"참여하기"</b>를 누르면 영상에 입장해요. 마이크는 꺼진 채로 시작하고, 카메라 없이도 참여할 수 있어요. 채팅으로 대화하면 돼요.</p>
+      </div>
+      <div class="guide-sec">
+        <h3>📱 기기 등록 (중요!)</h3>
+        <p>한 계정당 <b>최대 2대의 기기</b>까지만 캠스터디에 참여할 수 있어요. (예: 폰 + 패드)</p>
+        <p>3번째 기기로 입장하면 <b>"기기가 가득 찼어요"</b> 안내가 떠요. 기기를 바꾸고 싶으면 <b>관리자(선생님)에게 기기 초기화</b>를 요청하세요.</p>
+        <p style="color:var(--ink-48);font-size:13px">※ 되도록 <b>한 기기(본인 폰)만</b> 사용하는 걸 권장해요.</p>
+      </div>
+      <div class="guide-sec">
+        <h3>🔄 카메라 전환</h3>
+        <p>참여 중 <b>"카메라 전환"</b> 버튼으로 전면/후면 카메라를 바꿀 수 있어요. (카메라가 2개 이상인 기기만)</p>
+      </div>
+      <div class="guide-sec">
+        <h3>🖼️ 화면 보기</h3>
+        <p>여러 명이 <b>작은 타일</b>로 함께 보여요. 한 명만 크게 보기로 바뀌어도 자동으로 격자 화면으로 돌아와요.</p>
+      </div>
+      <div class="guide-sec">
+        <h3>💬 질문방</h3>
+        <p>모르는 문제는 사진을 찍어 올리고, 친구들의 답변을 받을 수 있어요. 답변에도 사진을 첨부할 수 있어요.</p>
+      </div>
+      <div class="guide-sec">
+        <h3>🔒 집중 모드</h3>
+        <p>참여 중 <b>"집중 모드"</b>를 누르면 화면이 가려지고 타이머만 보여요. 캠스터디는 뒤에서 계속 진행돼요.</p>
+      </div>
+    </div>
+
+    <!-- 패치노트 -->
+    <div id="guide-patch" class="guide-panel hidden">
+      <div class="patch-item">
+        <div class="patch-ver">v2.3 <span class="patch-tag new">최신</span></div>
+        <ul>
+          <li><b>카메라 기본 꺼짐</b> — 입장 시 카메라가 꺼진 채로 시작해요. "카메라 켜기"로 켤 수 있어요.</li>
+          <li><b>카메라 끄기 버튼</b> 추가 — 컨트롤에서 바로 카메라를 켜고 끌 수 있어요.</li>
+          <li><b>출석 유지 개선</b> — 잠깐 다른 앱을 봐도 캠스터디·출석이 끊기지 않아요.</li>
+          <li><b>질문방 사진 저장</b> — 질문·답변 사진을 기기에 다운로드할 수 있어요.</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v2.2</div>
+        <ul>
+          <li><b>출석 + 공부시간 측정</b> — 캠스터디에서 "출석하기"를 누르면 공부 시간이 기록돼요.</li>
+          <li><b>랭킹</b> 추가 — 주간·월간 누적 공부시간 순위를 볼 수 있어요. 🏆</li>
+          <li>관리자 화면에 전체 기기 등록 현황 표시.</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v2.1</div>
+        <ul>
+          <li><b>안내 페이지</b> 추가 — 사용법과 패치노트를 여기서 볼 수 있어요.</li>
+          <li><b>배경 업로드 제한</b> — 직접 이미지 배경 추가는 막고, 기본 배경만 쓸 수 있어요.</li>
+          <li>소소한 이스터에그 추가 🥚</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v2.0</div>
+        <ul>
+          <li><b>영상 시스템 전면 개편</b> — 더 안정적인 화상 연결로 바꿔, 인원이 많아도 끊김이 줄었어요.</li>
+          <li><b>기기 등록제</b> — 계정당 최대 2대까지 등록되도록 했어요.</li>
+          <li><b>타일 화면 고정</b> — 여러 명을 작은 타일로 보고, 한 명만 크게 보기에 갇히지 않게 했어요.</li>
+          <li><b>카메라 전환 버튼</b> 추가 (전면/후면).</li>
+          <li>관리자가 내보내면 채팅에 알림이 떠요.</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v1.5</div>
+        <ul>
+          <li>로그인 30일 유지 — 새로고침해도 다시 로그인 안 해도 돼요.</li>
+          <li>질문방 속도 개선 — 사진 자동 압축으로 더 빠르게.</li>
+          <li>채팅 안 읽음 알림 배지 추가.</li>
+          <li>모바일 화면 절전 방지 (참여 중 화면 안 꺼짐).</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v1.0</div>
+        <ul>
+          <li>캠스터디 + 질문방 정식 오픈.</li>
+          <li>관리자 기능 (계정 관리, 카메라 끄기/추방).</li>
+          <li>화면 가리기, 집중 모드.</li>
+        </ul>
+      </div>
+    </div>
+    <span class="omok-egg" onclick="openOmokPick()" title="?">⚫⚪</span>
+  </div>
+</div>
+
+<!-- 오목 상대 선택 modal -->
+<div id="omokPickModal" class="modal hidden">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 style="margin:0">⚫⚪ 오목 한 판</h2>
+      <button class="btn-cancel" style="flex:none;padding:8px 16px;font-size:14px" onclick="closeOmokPick()">닫기</button>
+    </div>
+    <p style="font-size:14px;color:var(--ink-48);margin:0 0 14px">대국할 친구의 <b>학번</b>을 입력하세요.<br>상대도 캠스터디에 참여 중이어야 해요.</p>
+    <div class="mrow">
+      <input type="text" id="omokTargetId" placeholder="예) 30107" inputmode="numeric" maxlength="5" onkeydown="if(event.key==='Enter')omokInvite()"/>
+    </div>
+    <div id="omokPickMsg" class="msg"></div>
+    <button class="btn-pill" style="width:100%" onclick="omokInvite()">대국 신청</button>
+  </div>
+</div>
+
+<!-- 오목 대국 modal -->
+<div id="omokGameModal" class="modal hidden">
+  <div class="modal-card" style="max-width:480px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0;font-size:20px">⚫⚪ 오목</h2>
+      <button class="btn-cancel" style="flex:none;padding:8px 16px;font-size:14px" onclick="omokQuit()">나가기</button>
+    </div>
+    <div id="omokStatus" class="omok-status">대국 준비 중...</div>
+    <div id="omokBoard" class="omok-board"></div>
+    <div id="omokInfo" class="omok-info"></div>
+  </div>
+</div>
+
+<!-- password modal -->
 <div id="pwModal" class="modal hidden">
   <div class="modal-card">
     <h2>비밀번호 변경</h2>
-    <div class="row"><label>현재 비밀번호</label><input id="curPw" type="password"/></div>
-    <div class="row"><label>새 비밀번호 (4자 이상)</label><input id="newPw" type="password"/></div>
+    <div class="mrow"><label>현재 비밀번호</label><input type="password" id="curPw"/></div>
+    <div class="mrow"><label>새 비밀번호 (4자 이상)</label><input type="password" id="newPw"/></div>
     <div id="pwMsg" class="msg"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closePwModal()">취소</button>
-      <button class="btn-ok" onclick="changePw()">변경</button>
+      <button class="btn-pill" onclick="changePw()">변경</button>
     </div>
   </div>
 </div>
 
-<!-- 질문 작성 모달 -->
+<!-- ask modal -->
 <div id="askModal" class="modal hidden">
   <div class="modal-card">
     <h2>질문 올리기</h2>
-    <div class="row">
-      <label>과목</label>
-      <input id="askSubject" placeholder="예) 수학, 영어, 물리..."/>
+    <div class="mrow"><label>과목</label>
+      <select id="askSubject" style="width:100%;padding:12px 15px;border:1px solid var(--hairline);border-radius:12px;background:var(--canvas);appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a7a7a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;">
+        <option value="">과목 선택</option>
+        <option value="국어">국어</option>
+        <option value="영어">영어</option>
+        <option value="수학">수학</option>
+        <option value="과탐">과탐</option>
+        <option value="사탐">사탐</option>
+      </select>
     </div>
-    <div class="row">
-      <label>문제 사진 (카메라 촬영 또는 갤러리)</label>
-      <input id="askImage" type="file" accept="image/*" capture="environment" onchange="previewAsk(this)"/>
+    <div class="mrow">
+      <label>문제 사진 (카메라 또는 갤러리)</label>
+      <input type="file" id="askImage" accept="image/*" onchange="previewAsk(this)"/>
       <img id="askPreview" class="preview-img hidden"/>
     </div>
-    <div class="row">
-      <label>질문 내용 (선택)</label>
-      <textarea id="askBody" rows="3" placeholder="어디가 막히는지 적어주세요"></textarea>
-    </div>
+    <div class="mrow"><label>질문 내용 (선택)</label><textarea id="askBody" rows="3" placeholder="어디가 막히는지 적어주세요"></textarea></div>
     <div id="askMsg" class="msg"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeAskModal()">취소</button>
-      <button class="btn-ok" onclick="submitQuestion()">올리기</button>
+      <button class="btn-pill" onclick="submitQuestion()">올리기</button>
     </div>
   </div>
 </div>
 
-<!-- 질문 상세 모달 -->
+<!-- detail modal -->
 <div id="detailModal" class="modal hidden">
   <div class="modal-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px">
       <h2 id="detailSubject" style="margin:0"></h2>
-      <button class="btn-cancel" style="padding:8px 14px;flex:none" onclick="closeDetail()">닫기</button>
+      <button class="btn-cancel" style="flex:none;padding:8px 16px;font-size:14px" onclick="closeDetail()">닫기</button>
     </div>
     <img id="detailImg" class="detail-img hidden"/>
-    <p id="detailBody" style="font-size:15px;line-height:1.5;color:var(--txt)"></p>
-    <div id="detailMeta" style="font-size:12px;color:var(--sub);margin-bottom:16px"></div>
-    <h3 style="font-size:15px;margin:8px 0">답변</h3>
+    <button id="detailImgDl" class="img-dl-btn hidden" onclick="">⬇ 사진 저장</button>
+    <p id="detailBody" style="font-size:17px;line-height:1.5;letter-spacing:-0.374px;margin:0"></p>
+    <div class="detail-meta" id="detailMeta"></div>
+    <div id="detailDelWrap" style="margin-bottom:18px"></div>
+    <h3 style="font-family:var(--font-display);font-size:17px;font-weight:600;letter-spacing:-0.3px;margin:0 0 12px">답변</h3>
     <div id="answerList"></div>
-    <div class="answer-input">
-      <input id="answerInput" placeholder="답변 달기..." onkeydown="if(event.key==='Enter')submitAnswer()"/>
-      <button onclick="submitAnswer()">등록</button>
+    <img id="ansPreview" class="preview-img hidden" style="margin-bottom:10px"/>
+    <div class="ans-input">
+      <label for="ansImage" class="ans-photo-btn" title="사진 첨부">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="12" rx="2" stroke="currentColor" stroke-width="1.4"/><circle cx="7" cy="8.5" r="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M3 14l4-3.5 3 2.5 3-3 4 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </label>
+      <input id="ansImage" type="file" accept="image/*" class="hidden" onchange="previewAns(this)"/>
+      <input id="answerInput" placeholder="답변 달기" onkeydown="if(event.key==='Enter')submitAnswer()"/>
+      <button class="btn-pill small" onclick="submitAnswer()">등록</button>
     </div>
   </div>
 </div>
 
 <script>
-// ============================================================
-// 전역 상태
-// ============================================================
-let token = null, me = null, socket = null;
-let localStream = null;       // 내 카메라 스트림
-let inStudy = false, camOn = false;
-const peers = {};             // socketId -> RTCPeerConnection
-const RTC_CONFIG = { iceServers:[{urls:"stun:stun.l.google.com:19302"}] };
+// ===== state =====
+let token=null, me=null, socket=null;
+let inStudy=false;
+let allQuestions=[], sortMode="new";
 
-function api(path, opts={}){
-  opts.headers = Object.assign({"Content-Type":"application/json"}, opts.headers||{});
-  if(token) opts.headers.Authorization = "Bearer "+token;
-  return fetch(path, opts).then(async r=>{
-    const d = await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(d.error||"요청 실패");
+function isStaff(){return me&&(me.role==="owner"||me.role==="admin");}
+function isOwner(){return me&&me.role==="owner";}
+
+const $=id=>document.getElementById(id);
+function api(p,o={}){
+  o.headers=Object.assign({"Content-Type":"application/json"},o.headers||{});
+  if(token)o.headers.Authorization="Bearer "+token;
+  return fetch(p,o).then(async r=>{
+    const d=await r.json().catch(()=>({}));
+    if(r.status===401){
+      // 세션 만료 → 저장된 로그인 정보 정리 후 로그인 화면으로
+      clearSession();
+      if(me){toast("세션이 만료됐어요. 다시 로그인해주세요.");setTimeout(()=>logout(),300);}
+      throw new Error(d.error||"세션이 만료되었습니다.");
+    }
+    if(!r.ok)throw new Error(d.error||"요청 실패");
     return d;
   });
 }
-function toast(t){
-  const el=document.createElement("div");el.className="toast";el.textContent=t;
-  document.body.appendChild(el);setTimeout(()=>el.remove(),2200);
-}
-const $=id=>document.getElementById(id);
+function toast(t){const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2200);}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function timeAgo(iso){const d=new Date(iso),s=(Date.now()-d)/1000;
+  if(s<60)return"방금";if(s<3600)return Math.floor(s/60)+"분 전";if(s<86400)return Math.floor(s/3600)+"시간 전";
+  if(s<604800)return Math.floor(s/86400)+"일 전";return d.toLocaleDateString();}
 
-// ============================================================
-// 로그인 / 인증
-// ============================================================
+// ===== login =====
 async function doLogin(){
-  const studentId=$("loginId").value.trim(), password=$("loginPw").value;
-  const msg=$("loginMsg"); msg.className="msg"; msg.textContent="";
+  const studentId=$("loginId").value.trim(),password=$("loginPw").value,msg=$("loginMsg");
+  msg.className="msg";msg.textContent="";
   try{
     const d=await api("/api/login",{method:"POST",body:JSON.stringify({studentId,password})});
-    token=d.token; me={studentId:d.studentId,nickname:d.nickname};
-    $("screen-login").classList.add("hidden");
-    $("screen-main").classList.remove("hidden");
-    $("navWho").textContent=me.nickname;
-    connectSocket();
-    loadQuestions();
-    if(d.mustChange){ toast("초기 비밀번호 사용중! 비밀번호를 변경해주세요."); openPwModal(); }
-  }catch(e){ msg.className="msg err"; msg.textContent=e.message; }
+    token=d.token;me={studentId:d.studentId,nickname:d.nickname,role:d.role||"student"};
+    saveSession(); // 새로고침 대비 저장
+    enterApp();
+    if(d.mustChange){toast("초기 비밀번호 사용 중 · 변경을 권장해요");openPwModal();}
+  }catch(e){msg.className="msg err";msg.textContent=e.message;}
+}
+// 로그인 성공 후 앱 화면 진입 (로그인/복원 공통)
+function enterApp(){
+  $("screen-login").classList.add("hidden");$("screen-main").classList.remove("hidden");
+  const roleLabel=me.role==="owner"?" · 운영자":(me.role==="admin"?" · 관리자":"");
+  $("navWho").textContent=me.nickname+roleLabel;
+  $("tab-admin").classList.toggle("hidden", !isStaff());
+  $("tb-admin").classList.toggle("hidden", !isStaff());
+  connectSocket();loadQuestions();restoreAttend();
+}
+// 세션 저장/복원 (새로고침해도 로그인 유지)
+function saveSession(){
+  try{ localStorage.setItem("camstudy_session", JSON.stringify({token,me})); }catch(e){}
+}
+function clearSession(){
+  try{ localStorage.removeItem("camstudy_session"); }catch(e){}
+}
+function restoreSession(){
+  try{
+    const raw=localStorage.getItem("camstudy_session");
+    if(!raw)return false;
+    const s=JSON.parse(raw);
+    if(!s.token||!s.me)return false;
+    token=s.token;me=s.me;
+    enterApp();
+    return true;
+  }catch(e){return false;}
 }
 function logout(){
-  if(inStudy) leaveStudy();
-  if(socket) socket.disconnect();
-  token=null;me=null;
-  $("screen-main").classList.add("hidden");
-  $("screen-login").classList.remove("hidden");
-  $("loginPw").value="";
+  if(inStudy)leaveStudy();if(socket)socket.disconnect();
+  token=null;me=null;clearSession();
+  $("screen-main").classList.add("hidden");$("screen-login").classList.remove("hidden");$("loginPw").value="";
+}
+$("loginPw").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+// 페이지 로드 시 저장된 세션 복원 시도
+window.addEventListener("load",()=>{restoreSession();});
+
+// ===== password =====
+// ===== 안내(사용법/패치노트) =====
+const APP_VERSION="v2.3";
+function openGuide(){
+  $("guideVersion").textContent=APP_VERSION;
+  showGuide("usage");
+  $("guideModal").classList.remove("hidden");
+}
+function closeGuide(){$("guideModal").classList.add("hidden");}
+function showGuide(which){
+  $("gt-usage").classList.toggle("active",which==="usage");
+  $("gt-patch").classList.toggle("active",which==="patch");
+  $("guide-usage").classList.toggle("hidden",which!=="usage");
+  $("guide-patch").classList.toggle("hidden",which!=="patch");
 }
 
-// ============================================================
-// 비밀번호 변경
-// ============================================================
+// ===== 오목 이스터에그 =====
+const OMOK_N=15;
+let studyParticipants=[];           // 캠스터디 참가자 목록 [{id,studentId,nickname}]
+let omok=null;                      // 현재 대국 상태
+// omok = { opp, oppName, myColor(1=흑,2=백), turn(1/2), board[15][15], over, last }
+
+function openOmokPick(){
+  if(!inStudy){ toast("먼저 캠스터디에 참여해주세요."); return; }
+  $("omokTargetId").value="";
+  $("omokPickMsg").textContent="";
+  $("guideModal").classList.add("hidden");
+  $("omokPickModal").classList.remove("hidden");
+  setTimeout(()=>$("omokTargetId").focus(),100);
+}
+function closeOmokPick(){$("omokPickModal").classList.add("hidden");}
+
+function omokInvite(){
+  const target=$("omokTargetId").value.trim();
+  const msg=$("omokPickMsg");
+  msg.className="msg";
+  if(!/^\d{5}$/.test(target)){ msg.className="msg err"; msg.textContent="학번 5자리를 입력하세요."; return; }
+  if(target===me.studentId){ msg.className="msg err"; msg.textContent="본인에게는 신청할 수 없어요."; return; }
+  socket.emit("omok-invite",{studentId:target});
+  closeOmokPick();
+  toast(target+" 님에게 신청했어요. 수락을 기다리는 중...");
+  // 신청자=흑(선공). 상대 socketId는 수락 신호(omok-accept)에서 확정됨
+  omok={opp:null,oppName:target,myColor:1,turn:1,board:omokEmpty(),over:false,last:null,pending:true};
+}
+function omokOnInvite(from,nickname){
+  if(omok && !omok.over){ socket.emit("omok-decline",{to:from}); return; } // 이미 대국 중
+  if(confirm(`${nickname} 님이 오목 대국을 신청했어요. 받으실래요?`)){
+    socket.emit("omok-accept",{to:from});
+    // 수락자=백(후공)
+    omok={opp:from,oppName:nickname,myColor:2,turn:1,board:omokEmpty(),over:false,last:null};
+    omokStart();
+  }else{
+    socket.emit("omok-decline",{to:from});
+  }
+}
+function omokOnAccept(from,nickname){
+  if(!omok || !omok.pending) return;   // 내가 신청해서 대기 중일 때만
+  omok.opp=from;                       // 상대 socketId 확정
+  omok.pending=false;
+  omok.oppName=nickname||omok.oppName;
+  omokStart(); // 신청자=흑(선공)
+  toast("대국이 시작됐어요! 흑돌(선공)이에요.");
+}
+function omokOnDecline(from){
+  if(omok && omok.opp===from){ omok=null; toast("상대가 신청을 거절했어요."); }
+}
+function omokOnMove(from,x,y){
+  if(!omok || omok.opp!==from || omok.over) return;
+  const color=omok.myColor===1?2:1; // 상대 색
+  omokPlace(x,y,color);
+}
+function omokOnResign(from){
+  if(omok && omok.opp===from && !omok.over){
+    omok.over=true;
+    $("omokStatus").textContent="상대가 나갔어요. 당신의 승리! 🎉";
+    omokRender();
+  }
+}
+
+function omokEmpty(){ return Array.from({length:OMOK_N},()=>Array(OMOK_N).fill(0)); }
+function omokStart(){
+  $("omokGameModal").classList.remove("hidden");
+  omokRender();
+  omokUpdateStatus();
+}
+function omokUpdateStatus(){
+  if(!omok) return;
+  if(omok.over) return;
+  const myTurn=omok.turn===omok.myColor;
+  const myStone=omok.myColor===1?"흑":"백";
+  $("omokStatus").textContent=myTurn?`내 차례예요 (${myStone}돌)`:`${omok.oppName} 님 차례...`;
+  $("omokInfo").textContent=`나: ${myStone}돌 · 5개를 연속으로 놓으면 승리`;
+}
+function omokRender(){
+  const b=$("omokBoard");
+  b.innerHTML="";
+  for(let y=0;y<OMOK_N;y++){
+    for(let x=0;x<OMOK_N;x++){
+      const cell=document.createElement("div");
+      cell.className="omok-cell";
+      const v=omok.board[y][x];
+      if(v){
+        const s=document.createElement("div");
+        s.className="omok-stone "+(v===1?"black":"white");
+        if(omok.last&&omok.last.x===x&&omok.last.y===y) s.classList.add("last");
+        cell.appendChild(s);
+      }
+      cell.onclick=()=>omokTry(x,y);
+      b.appendChild(cell);
+    }
+  }
+}
+function omokTry(x,y){
+  if(!omok||omok.over) return;
+  if(omok.turn!==omok.myColor){ toast("상대 차례예요."); return; }
+  if(omok.board[y][x]!==0) return;
+  omokPlace(x,y,omok.myColor);
+  socket.emit("omok-move",{to:omok.opp,x,y});
+}
+function omokPlace(x,y,color){
+  if(omok.board[y][x]!==0) return;
+  omok.board[y][x]=color;
+  omok.last={x,y};
+  omok.turn=color===1?2:1;
+  omokRender();
+  if(omokWin(x,y,color)){
+    omok.over=true;
+    const iWon=color===omok.myColor;
+    $("omokStatus").textContent=iWon?"이겼어요! 🎉":"졌어요... 😢";
+  }else{
+    omokUpdateStatus();
+  }
+}
+function omokWin(x,y,c){
+  const dirs=[[1,0],[0,1],[1,1],[1,-1]];
+  for(const [dx,dy] of dirs){
+    let cnt=1;
+    for(let s=1;s<5;s++){const nx=x+dx*s,ny=y+dy*s;if(nx<0||ny<0||nx>=OMOK_N||ny>=OMOK_N||omok.board[ny][nx]!==c)break;cnt++;}
+    for(let s=1;s<5;s++){const nx=x-dx*s,ny=y-dy*s;if(nx<0||ny<0||nx>=OMOK_N||ny>=OMOK_N||omok.board[ny][nx]!==c)break;cnt++;}
+    if(cnt>=5) return true;
+  }
+  return false;
+}
+function omokQuit(){
+  if(omok && !omok.over){ socket.emit("omok-resign",{to:omok.opp}); }
+  omok=null;
+  $("omokGameModal").classList.add("hidden");
+}
+
+// ===== 출석 / 공부시간 =====
+let attending=false, attendStart=0, attendTick=null, attendBeat=null;
+function fmtHMS(totalSec){
+  const h=Math.floor(totalSec/3600), m=Math.floor((totalSec%3600)/60), s=totalSec%60;
+  return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+}
+function fmtMin(min){
+  const h=Math.floor(min/60), m=min%60;
+  if(h>0) return h+"시간 "+m+"분";
+  return m+"분";
+}
+async function toggleAttend(){
+  if(!attending) await startAttend(); else await stopAttend();
+}
+async function startAttend(){
+  try{
+    const r=await api("/api/attend/start",{method:"POST"});
+    attending=true;
+    attendStart=r.startedAt?new Date(r.startedAt).getTime():Date.now();
+    $("btnAttend").textContent="출석 종료";$("btnAttend").classList.add("on");
+    $("attendPill").classList.remove("hidden");
+    startAttendTick();
+    toast("출석되었습니다! 공부 시간 측정을 시작해요. 📚");
+  }catch(e){ toast(e.message||"출석에 실패했어요."); }
+}
+async function stopAttend(){
+  try{ await api("/api/attend/stop",{method:"POST"}); }catch(e){}
+  attending=false;
+  stopAttendTick();
+  $("btnAttend").textContent="출석하기";$("btnAttend").classList.remove("on");
+  $("attendPill").classList.add("hidden");
+  toast("출석을 종료했어요. 수고했어요! 👏");
+}
+function startAttendTick(){
+  stopAttendTick();
+  const upd=()=>{ const sec=Math.max(0,Math.floor((Date.now()-attendStart)/1000)); $("attendTimer").textContent=fmtHMS(sec); };
+  upd();
+  attendTick=setInterval(upd,1000);
+  // 1분마다 서버에 갱신 (중간에 닫혀도 시간 보존)
+  attendBeat=setInterval(()=>{ api("/api/attend/heartbeat",{method:"POST"}).catch(()=>{}); },60000);
+}
+function stopAttendTick(){
+  if(attendTick){clearInterval(attendTick);attendTick=null;}
+  if(attendBeat){clearInterval(attendBeat);attendBeat=null;}
+}
+// 접속 시 출석 상태 복원 (새로고침/재접속 대비)
+async function restoreAttend(){
+  try{
+    const r=await api("/api/attend/status");
+    if(r.active){
+      attending=true;
+      attendStart=new Date(r.startedAt).getTime();
+      $("btnAttend").textContent="출석 종료";$("btnAttend").classList.add("on");
+      $("attendPill").classList.remove("hidden");
+      $("btnAttend").disabled=false;
+      startAttendTick();
+    }
+  }catch(e){}
+}
+
+// ===== 랭킹 =====
+let rankPeriod="week";
+function setRankPeriod(p){
+  rankPeriod=p;
+  $("rp-week").classList.toggle("active",p==="week");
+  $("rp-month").classList.toggle("active",p==="month");
+  loadRanking();
+}
+async function loadRanking(){
+  const listEl=$("rankList"), myEl=$("myRank");
+  listEl.innerHTML='<div class="rank-empty">불러오는 중...</div>';
+  myEl.innerHTML="";
+  try{
+    const r=await api("/api/ranking?period="+rankPeriod);
+    const list=r.ranking||[];
+    // 내 순위 카드
+    if(r.me && r.me.rank){
+      myEl.innerHTML=`<div><div class="mr-label">내 순위</div><div class="mr-rank">${r.me.rank}위</div></div>`+
+        `<div class="mr-time">${fmtMin(r.me.minutes)}</div>`;
+    }else{
+      myEl.innerHTML=`<div><div class="mr-label">내 순위</div><div class="mr-rank">-</div></div>`+
+        `<div class="mr-time">출석해서 공부해보세요!</div>`;
+    }
+    if(!list.length){ listEl.innerHTML='<div class="rank-empty">아직 기록이 없어요. 첫 출석의 주인공이 되어보세요!</div>'; return; }
+    const medals=["🥇","🥈","🥉"];
+    listEl.innerHTML=list.map((u,i)=>{
+      const rank=i+1;
+      const isMe=u.student_id===me.studentId;
+      const topClass=rank<=3?`top${rank}`:"";
+      const numHtml=rank<=3?`<div class="rank-medal">${medals[rank-1]}</div>`:`<div class="rank-num">${rank}</div>`;
+      return `<div class="rank-row ${topClass} ${isMe?"me":""}">${numHtml}`+
+        `<div class="rank-name">${esc(u.nickname)}${isMe?" (나)":""}</div>`+
+        `<div class="rank-time">${fmtMin(u.minutes)}</div></div>`;
+    }).join("");
+  }catch(e){ listEl.innerHTML='<div class="rank-empty">'+esc(e.message||"불러오기 실패")+'</div>'; }
+}
+
 function openPwModal(){$("pwModal").classList.remove("hidden");$("pwMsg").textContent="";}
 function closePwModal(){$("pwModal").classList.add("hidden");$("curPw").value="";$("newPw").value="";}
 async function changePw(){
   const msg=$("pwMsg");msg.className="msg";
   try{
-    await api("/api/change-password",{method:"POST",
-      body:JSON.stringify({currentPassword:$("curPw").value,newPassword:$("newPw").value})});
-    msg.className="msg ok";msg.textContent="변경되었습니다!";
-    setTimeout(closePwModal,800);
+    await api("/api/change-password",{method:"POST",body:JSON.stringify({currentPassword:$("curPw").value,newPassword:$("newPw").value})});
+    msg.className="msg ok";msg.textContent="변경되었어요.";setTimeout(closePwModal,800);
   }catch(e){msg.className="msg err";msg.textContent=e.message;}
 }
 
-// ============================================================
-// 탭 전환
-// ============================================================
+// ===== tabs =====
+// 캠스터디 화면/채팅 패널 전환 (모바일)
+let unreadChat=0;
+function showStudyPanel(which){
+  const grid=$("studyGrid");
+  grid.classList.toggle("show-video",which==="video");
+  grid.classList.toggle("show-chat",which==="chat");
+  $("subt-video").classList.toggle("active",which==="video");
+  $("subt-chat").classList.toggle("active",which==="chat");
+  if(which==="chat"){
+    clearChatUnread();
+    // 채팅 보일 때 맨 아래로 스크롤
+    const log=$("chatLog");if(log)log.scrollTop=log.scrollHeight;
+  }
+}
+
 function showTab(t){
   $("tab-study").classList.toggle("active",t==="study");
   $("tab-qna").classList.toggle("active",t==="qna");
+  $("tab-rank").classList.toggle("active",t==="rank");
+  $("tab-admin").classList.toggle("active",t==="admin");
   $("view-study").classList.toggle("hidden",t!=="study");
   $("view-qna").classList.toggle("hidden",t!=="qna");
-  if(t==="qna") loadQuestions();
+  $("view-rank").classList.toggle("hidden",t!=="rank");
+  $("view-admin").classList.toggle("hidden",t!=="admin");
+  // 모바일 하단 탭바 동기화
+  $("tb-study").classList.toggle("active",t==="study");
+  $("tb-qna").classList.toggle("active",t==="qna");
+  $("tb-rank").classList.toggle("active",t==="rank");
+  $("tb-admin").classList.toggle("active",t==="admin");
+  if(t==="qna")loadQuestions();
+  if(t==="admin")loadAdminUsers();
+  if(t==="rank")loadRanking();
+  // 캠스터디 탭으로 와서 채팅이 보이는 상태면 안 읽음 배지 클리어
+  if(t==="study" && isChatVisible()) clearChatUnread();
+  window.scrollTo(0,0);
 }
 
-// ============================================================
-// Socket 연결 + 캠스터디
-// ============================================================
+// ===== socket + study =====
 function connectSocket(){
   socket=io({auth:{token}});
   socket.on("connect_error",e=>toast("연결 오류: "+e.message));
-
-  socket.on("participant-count",n=>{ $("studyCount").textContent=n; });
-
-  // 입장 시 기존 참가자들에게 내가 offer 보냄
-  socket.on("existing-participants",list=>{
-    list.forEach(p=>{ ensureTile(p.id,p.nickname,p.camOn); createPeer(p.id,true); });
-    refreshEmpty();
-  });
-  socket.on("user-joined",p=>{
-    ensureTile(p.id,p.nickname,p.camOn); refreshEmpty();
-    // 신규 입장자가 우리에게 offer를 보낼 것이므로 여기선 tile만
-  });
-  socket.on("user-left",({id})=>{ removePeer(id); removeTile(id); refreshEmpty(); });
-  socket.on("peer-cam-state",({id,camOn})=>{ updateTileCam(id,camOn); });
-
-  // WebRTC 시그널링
-  socket.on("webrtc-offer", async ({from,sdp})=>{
-    const pc=createPeer(from,false);
-    await pc.setRemoteDescription(sdp);
-    const ans=await pc.createAnswer();
-    await pc.setLocalDescription(ans);
-    socket.emit("webrtc-answer",{to:from,sdp:pc.localDescription});
-  });
-  socket.on("webrtc-answer", async ({from,sdp})=>{
-    const pc=peers[from]; if(pc) await pc.setRemoteDescription(sdp);
-  });
-  socket.on("webrtc-ice", async ({from,candidate})=>{
-    const pc=peers[from]; if(pc&&candidate) try{await pc.addIceCandidate(candidate);}catch(e){}
-  });
-
-  // 채팅
+  socket.on("participant-count",n=>{$("studyCount").textContent=n;});
+  socket.on("participant-list",list=>{ studyParticipants=list||[]; });
   socket.on("chat",m=>addChat(m));
+  socket.on("chat-deleted",({id})=>{const el=document.querySelector('[data-cid="'+id+'"]');if(el)el.remove();});
+
+  // ── 오목 신호 ──
+  socket.on("omok-invite",({from,nickname})=>omokOnInvite(from,nickname));
+  socket.on("omok-accept",({from,nickname})=>omokOnAccept(from,nickname));
+  socket.on("omok-decline",({from})=>omokOnDecline(from));
+  socket.on("omok-move",({from,x,y})=>omokOnMove(from,x,y));
+  socket.on("omok-resign",({from})=>omokOnResign(from));
+  socket.on("omok-notfound",({studentId,self})=>{
+    omok=null;
+    toast(self?"본인에게는 신청할 수 없어요.":`${studentId} 님이 캠스터디에 없어요. 상대가 참여 중인지 확인해주세요.`);
+  });
+
+  // 다른 기기에서 같은 학번으로 입장 → 이 기기는 채팅방에서 나감
+  socket.on("force-leave-study",({reason})=>{
+    if(inStudy){
+      leaveStudy();
+      toast(reason||"다른 기기에서 입장하여 캠스터디에서 나갔어요.");
+    }
+  });
+
+  // 재연결 시 채팅방 재입장 (서버가 강제로 끊었을 때만)
+  socket.on("disconnect",(reason)=>{
+    if(reason==="io server disconnect") socket._wasInStudy=inStudy;
+  });
+  socket.on("connect",()=>{
+    if(!socket._wasInStudy) return;
+    socket._wasInStudy=false;
+    if(inStudy) socket.emit("join-study");
+  });
 }
 
-async function toggleStudy(){ inStudy ? leaveStudy() : joinStudy(); }
+function toggleStudy(){inStudy?leaveStudy():joinStudy();}
+// ===== 기기 식별자 (localStorage에 영구 저장) =====
+function getDeviceId(){
+  let id=null;
+  try{ id=localStorage.getItem("camstudy_device_id"); }catch(e){}
+  if(!id){
+    id=(crypto.randomUUID?crypto.randomUUID():(Date.now()+"-"+Math.random().toString(36).slice(2)));
+    try{ localStorage.setItem("camstudy_device_id", id); }catch(e){}
+  }
+  return id;
+}
+function getDeviceName(){
+  const ua=navigator.userAgent;
+  let name="기기";
+  if(/iPhone/.test(ua)) name="아이폰";
+  else if(/iPad/.test(ua)) name="아이패드";
+  else if(/Android/.test(ua)) name=/Mobile/.test(ua)?"안드로이드폰":"안드로이드패드";
+  else if(/Macintosh/.test(ua)) name="맥";
+  else if(/Windows/.test(ua)) name="윈도우 PC";
+  return name;
+}
+
+let jitsiApi=null;
 
 async function joinStudy(){
+  // 서버에서 기기 검증 + JaaS 입장권 받기
+  try{
+    const r=await api("/api/study/join",{method:"POST",body:JSON.stringify({
+      deviceId:getDeviceId(), deviceName:getDeviceName()
+    })});
+    startJitsi(r);
+  }catch(e){
+    if(e.message && e.message.indexOf("기기가 가득")>=0){
+      toast(e.message);
+    }else{
+      toast(e.message||"입장에 실패했어요.");
+    }
+    return;
+  }
   inStudy=true;
-  $("btnJoin").textContent="캠스터디 나가기";
-  $("btnJoin").classList.remove("join");$("btnJoin").classList.add("danger");
-  $("btnCam").disabled=false; $("btnPrivacy").disabled=false;
-  $("chatInput").disabled=false; $("chatSendBtn").disabled=false;
-  // 내 타일 추가 (카메라는 아직 off)
-  ensureTile("me",me.nickname+" (나)",false,true);
-  socket.emit("join-study",{camOn:false});
-  refreshEmpty();
+  $("btnJoin").textContent="나가기";$("btnJoin").classList.remove("join");$("btnJoin").classList.add("leave");
+  $("btnPrivacy").disabled=false;$("chatInput").disabled=false;$("chatSend").disabled=false;
+  $("btnAttend").disabled=false;
+  $("jitsiContainer").classList.add("active");
+  $("studyEmpty").style.display="none";
+  socket.emit("join-study");
+  requestWakeLock();
+}
+
+function startJitsi(cfg){
+  if(typeof JitsiMeetExternalAPI==="undefined"){ toast("영상 모듈을 불러오지 못했어요. 새로고침해주세요."); return; }
+  const domain="8x8.vc";
+  const options={
+    roomName: cfg.appId + "/" + cfg.room,
+    jwt: cfg.token,
+    parentNode: document.getElementById("jitsiContainer"),
+    width:"100%", height:"100%",
+    lang:"ko",
+    configOverwrite:{
+      // ── 마이크: 자습용이라 음성 불필요 → 끄고 시작 + 못 켜게 ──
+      startWithAudioMuted:true,
+      startAudioOnly:false,
+      startWithVideoMuted:true,           // 카메라도 꺼진 채로 시작
+      // ── 이름 입력/사전 입장 화면 완전히 생략 ──
+      prejoinPageEnabled:false,
+      prejoinConfig:{ enabled:false },
+      requireDisplayName:false,
+      // ── 여러 명을 한 번에 작게 보는 타일 뷰 기본 ──
+      startTileView:true,
+      disableTileView:false,
+      // ── 밝은 배경 ──
+      defaultBackground:"#f5f5f7",
+      // ── 잡다한 기능 끄기 ──
+      disableDeepLinking:true,
+      disableSelfView:false,
+      disableReactions:true,
+      disablePolls:true,
+      hideConferenceSubject:true,
+      // 배경: 기본 제공 배경/흐림은 두되, 직접 이미지 업로드는 막음
+      disableAddingBackgroundImages:true,
+      hideConferenceTimer:false,
+      // ── 툴바: 마이크 제거(자습), 꼭 필요한 것만 ──
+      toolbarButtons:["camera","hangup","fullscreen","settings"],
+      notifications:[],   // 알림 최소화
+    },
+    interfaceConfigOverwrite:{
+      MOBILE_APP_PROMO:false,
+      SHOW_JITSI_WATERMARK:false,
+      SHOW_WATERMARK_FOR_GUESTS:false,
+      SHOW_CHROME_EXTENSION_BANNER:false,
+      DEFAULT_BACKGROUND:"#f5f5f7",        // 밝은 회색 배경 (우리 테마)
+      DISABLE_VIDEO_BACKGROUND:false,
+      TILE_VIEW_MAX_COLUMNS:7,             // 타일 한 줄에 최대 7명 (작게 많이)
+      DISABLE_DOMINANT_SPEAKER_INDICATOR:true,
+      DEFAULT_REMOTE_DISPLAY_NAME:"학생",
+      TOOLBAR_BUTTONS:["camera","hangup","fullscreen","settings"],
+    },
+    userInfo:{ displayName: me.nickname },
+  };
+  jitsiApi=new JitsiMeetExternalAPI(domain, options);
+  // hangup(나가기) 버튼을 직접 눌렀을 때만 종료
+  jitsiApi.addEventListener("readyToClose", ()=>{ leaveStudy(); });
+  // 주의: videoConferenceLeft로는 자동 종료하지 않음.
+  //  백그라운드 전환 시 일시적으로 발생할 수 있어, 잠깐 자리비움에도 캠스터디가 꺼지는 문제 방지.
+  // 타일뷰 강제 함수 (여러 번/딜레이 두고 호출해서 확실히 적용)
+  function forceTileView(){
+    try{ jitsiApi.executeCommand("setTileView", true); }catch(e){}
+  }
+  jitsiApi.addEventListener("videoConferenceJoined", ()=>{
+    forceTileView();
+    setTimeout(forceTileView, 800);    // Jitsi 준비 후 재적용
+    setTimeout(forceTileView, 2000);
+    try{ jitsiApi.isAudioMuted().then(m=>{ if(!m) jitsiApi.executeCommand("toggleAudio"); }); }catch(e){}
+  });
+  // 누가 타일뷰를 끄면(한 명만 크게 보기로 전환) 즉시 다시 타일뷰로 되돌림
+  // → 학생이 실수로 한 명만 보기로 들어가도 못 빠져나오는 일 방지
+  jitsiApi.addEventListener("tileViewChanged", (e)=>{
+    if(e && e.enabled===false){
+      setTimeout(forceTileView, 200);
+    }
+  });
+  // 새 참가자가 들어올 때마다 타일뷰 유지 (한 명이 크게 잡히는 것 방지)
+  jitsiApi.addEventListener("participantJoined", ()=>{ setTimeout(forceTileView, 300); });
+  jitsiApi.addEventListener("participantLeft", ()=>{ setTimeout(forceTileView, 300); });
+
+  // 관리자(moderator)가 Jitsi에서 누군가 추방하면 → 우리 채팅에 알림
+  // (관리자 본인 화면에서만 이벤트가 잡히므로, 관리자가 시스템 공지를 서버로 쏨)
+  if(cfg.moderator){
+    jitsiApi.addEventListener("participantKickedOut", (e)=>{
+      try{
+        const who=(e && e.kicked && e.kicked.name) ? e.kicked.name : "참가자";
+        socket.emit("system-notice", { text: `${who} 님이 관리자에 의해 캠스터디에서 내보내졌습니다.` });
+      }catch(err){}
+    });
+  }
+  // 입장 완료되면 카메라 켜기/전환 버튼 활성화
+  jitsiApi.addEventListener("videoConferenceJoined", ()=>{
+    $("btnFlipCam").disabled=false;
+    $("btnCam").disabled=false;
+    camMuted=true;                       // 꺼진 채로 시작
+    updateCamBtn();
+  });
+  // Jitsi 안에서 카메라를 켜고/끄면 우리 버튼도 동기화
+  jitsiApi.addEventListener("videoMuteStatusChanged", (e)=>{
+    camMuted = !!(e && e.muted);
+    updateCamBtn();
+  });
+}
+
+// ===== 카메라 켜기/끄기 =====
+let camMuted=true;
+function updateCamBtn(){
+  const b=$("btnCam"); if(!b) return;
+  b.textContent = camMuted ? "카메라 켜기" : "카메라 끄기";
+  b.classList.toggle("on", !camMuted);
+}
+function toggleJitsiCam(){
+  if(!jitsiApi) return;
+  try{ jitsiApi.executeCommand("toggleVideo"); }catch(e){}
+  // 상태는 videoMuteStatusChanged 이벤트로 갱신됨
+}
+
+// ===== 카메라 전환 (전면 ↔ 후면) =====
+// 기기의 카메라 목록을 받아 현재와 다른 카메라로 전환
+let _camList=[], _camIdx=0;
+async function flipJitsiCamera(){
+  if(!jitsiApi){ return; }
+  try{
+    const devices=await jitsiApi.getAvailableDevices();
+    const cams=(devices && devices.videoInput) ? devices.videoInput : [];
+    if(cams.length<2){ toast("전환할 카메라가 없어요."); return; }
+    _camList=cams;
+    // 현재 사용 중인 카메라 다음 것으로
+    _camIdx=(_camIdx+1)%cams.length;
+    const next=cams[_camIdx];
+    jitsiApi.setVideoInputDevice(next.label, next.deviceId);
+    toast("카메라를 전환했어요.");
+  }catch(e){ toast("카메라 전환에 실패했어요. 설정에서 바꿔주세요."); }
 }
 
 function leaveStudy(){
-  inStudy=false;camOn=false;
+  inStudy=false;
   socket.emit("leave-study");
-  Object.keys(peers).forEach(removePeer);
-  if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
-  $("videoGrid").querySelectorAll(".tile").forEach(t=>t.remove());
-  $("btnJoin").textContent="캠스터디 참여하기";
-  $("btnJoin").classList.add("join");$("btnJoin").classList.remove("danger");
-  $("btnCam").disabled=true;$("btnCam").textContent="📷 카메라 켜기";$("btnCam").classList.remove("on");
-  $("btnPrivacy").disabled=true;
-  $("chatInput").disabled=true;$("chatSendBtn").disabled=true;
-  refreshEmpty();
+  if(jitsiApi){ try{ jitsiApi.dispose(); }catch(e){} jitsiApi=null; }
+  $("jitsiContainer").classList.remove("active");
+  $("jitsiContainer").innerHTML="";
+  $("btnJoin").textContent="참여하기";$("btnJoin").classList.add("join");$("btnJoin").classList.remove("leave");
+  $("btnFlipCam").disabled=true;
+  $("btnPrivacy").disabled=true;$("chatInput").disabled=true;$("chatSend").disabled=true;
+  // 출석 중이었다면 자동 종료
+  if(attending){ stopAttend(); }
+  $("btnAttend").disabled=true;
+  $("btnCam").disabled=true;$("btnCam").textContent="카메라 켜기";$("btnCam").classList.remove("on");
+  $("studyEmpty").style.display="block";
+  releaseWakeLock();
 }
 
-// ---- 카메라 ----
-async function toggleCam(){
-  if(!camOn){
-    try{
-      // 비디오만! 마이크(audio)는 절대 요청하지 않음
-      localStream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
-      camOn=true;
-      $("btnCam").textContent="📷 카메라 끄기";$("btnCam").classList.add("on");
-      const v=$("video-me"); if(v){v.srcObject=localStream;v.muted=true;}
-      updateTileCam("me",true);
-      // 모든 peer에 트랙 추가 후 재협상
-      for(const id in peers){
-        localStream.getTracks().forEach(tr=>peers[id].addTrack(tr,localStream));
-        await renegotiate(id);
-      }
-      socket.emit("cam-state",{camOn:true});
-    }catch(e){ toast("카메라를 사용할 수 없어요: "+e.message); }
-  }else{
-    camOn=false;
-    if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
-    $("btnCam").textContent="📷 카메라 켜기";$("btnCam").classList.remove("on");
-    const v=$("video-me");if(v)v.srcObject=null;
-    updateTileCam("me",false);
-    socket.emit("cam-state",{camOn:false});
+// ===== 화면 꺼짐 방지 (Wake Lock) =====
+let wakeLock=null;
+async function requestWakeLock(){
+  try{
+    if("wakeLock" in navigator){
+      wakeLock=await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release",()=>{ wakeLock=null; });
+    }
+  }catch(e){ /* 미지원/거부 시 조용히 무시 */ }
+}
+async function releaseWakeLock(){
+  try{ if(wakeLock){ await wakeLock.release(); wakeLock=null; } }catch(e){}
+}
+// 화면이 잠깐 꺼졌다 켜지면 Wake Lock이 자동 해제되므로, 복귀 시 다시 요청
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible"){
+    if(inStudy && !wakeLock) requestWakeLock();
+    // 백그라운드 동안 타이머가 느려졌을 수 있어 출석 시간 재동기화
+    if(attending){
+      api("/api/attend/status").then(r=>{
+        if(r.active){ attendStart=new Date(r.startedAt).getTime(); }
+      }).catch(()=>{});
+    }
   }
-}
+});
 
-// ---- WebRTC peer ----
-function createPeer(id,initiator){
-  if(peers[id]) return peers[id];
-  const pc=new RTCPeerConnection(RTC_CONFIG);
-  peers[id]=pc;
-  if(localStream) localStream.getTracks().forEach(tr=>pc.addTrack(tr,localStream));
-  pc.onicecandidate=e=>{ if(e.candidate) socket.emit("webrtc-ice",{to:id,candidate:e.candidate}); };
-  pc.ontrack=e=>{
-    const v=$("video-"+id);
-    if(v){ v.srcObject=e.streams[0]; updateTileCam(id,true); }
-  };
-  if(initiator){ renegotiate(id); }
-  return pc;
-}
-async function renegotiate(id){
-  const pc=peers[id]; if(!pc) return;
-  const offer=await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  socket.emit("webrtc-offer",{to:id,sdp:pc.localDescription});
-}
-function removePeer(id){ if(peers[id]){peers[id].close();delete peers[id];} }
-
-// ---- 비디오 타일 ----
-function ensureTile(id,name,hasCam,isMe){
-  if($("tile-"+id)) return;
-  const grid=$("videoGrid");
-  const div=document.createElement("div");
-  div.className="tile"; div.id="tile-"+id;
-  const initial=(name||"?").trim()[0]||"?";
-  div.innerHTML=`
-    <video id="video-${id}" autoplay playsinline ${isMe?"muted":""}></video>
-    <div class="nocam" id="nocam-${id}">
-      <div class="av">${initial}</div>
-      <span>카메라 꺼짐</span>
-    </div>
-    <div class="name">${name}</div>`;
-  grid.appendChild(div);
-  updateTileCam(id,hasCam);
-}
-function updateTileCam(id,on){
-  const nocam=$("nocam-"+id),video=$("video-"+id);
-  if(!nocam||!video)return;
-  nocam.style.display=on?"none":"flex";
-  video.style.display=on?"block":"none";
-}
-function removeTile(id){ const t=$("tile-"+id); if(t)t.remove(); }
-function refreshEmpty(){
-  const hasTiles=$("videoGrid").querySelectorAll(".tile").length>0;
-  $("studyEmpty").style.display=hasTiles?"none":"block";
-}
-
-// ---- 채팅 ----
-function sendChat(){
-  const inp=$("chatInput"),t=inp.value.trim();
-  if(!t)return; socket.emit("chat",{text:t}); inp.value="";
-}
+// ===== chat =====
+function sendChat(){const i=$("chatInput"),t=i.value.trim();if(!t)return;socket.emit("chat",{text:t});i.value="";}
 function addChat(m){
-  const log=$("chatLog");const div=document.createElement("div");
-  if(m.system){ div.className="chat-msg system";div.textContent=m.text; }
+  const log=$("chatLog"),d=document.createElement("div");
+  if(m.id)d.setAttribute("data-cid",m.id);
+  if(m.system){d.className="cmsg system";d.textContent=m.text;}
   else{
     const mine=m.studentId===me.studentId;
-    div.className="chat-msg"+(mine?" me":"");
-    div.innerHTML=`<span class="who">${m.nickname}</span><span>${escapeHtml(m.text)}</span>`;
+    d.className="cmsg"+(mine?" me":"");
+    const delBtn=(isStaff()&&m.id)?`<button class="cmsg-del" onclick="deleteChat('${m.id}')" title="삭제">×</button>`:"";
+    d.innerHTML=`<span class="who">${esc(m.nickname)}</span><span class="ctxt">${esc(m.text)}</span>${delBtn}`;
   }
-  log.appendChild(div); log.scrollTop=log.scrollHeight;
+  log.appendChild(d);log.scrollTop=log.scrollHeight;
+  // 채팅을 실제로 보고 있지 않을 때 새 메시지(시스템 제외) → 안 읽음 배지
+  if(!m.system && !isChatVisible()){
+    unreadChat++;
+    updateChatBadges();
+  }
 }
-function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+// 지금 채팅이 화면에 보이는 상태인가?
+function isChatVisible(){
+  // 모바일 여부
+  const isMobile=window.matchMedia("(max-width:640px)").matches;
+  // 캠스터디 탭이 아니면 채팅 안 보임
+  const onStudyTab=!$("view-study").classList.contains("hidden");
+  if(!onStudyTab) return false;
+  if(isMobile){
+    // 모바일: 채팅 패널이 떠 있어야 보임
+    return $("studyGrid") && $("studyGrid").classList.contains("show-chat");
+  }
+  // 데스크탑: 캠스터디 탭이면 채팅이 항상 옆에 보임
+  return true;
+}
+// 두 배지(서브탭 + 하단 탭바) 동기화
+function updateChatBadges(){
+  const txt=unreadChat>99?"99+":String(unreadChat);
+  const sub=$("chatBadge"), tab=$("tabChatBadge");
+  if(unreadChat>0){
+    if(sub){sub.textContent=txt;sub.classList.remove("hidden");}
+    if(tab){tab.textContent=txt;tab.classList.remove("hidden");}
+  }else{
+    if(sub)sub.classList.add("hidden");
+    if(tab)tab.classList.add("hidden");
+  }
+}
+function clearChatUnread(){unreadChat=0;updateChatBadges();}
+function deleteChat(id){socket.emit("delete-chat",{id});}
 
-// ============================================================
-// 화면 가리기 (집중 모드)
-// ============================================================
-let privacyTimer=null,privacyStart=0;
-function openPrivacy(){
-  $("privacyOverlay").classList.remove("hidden");
-  privacyStart=Date.now();
-  privacyTimer=setInterval(()=>{
-    const s=Math.floor((Date.now()-privacyStart)/1000);
-    const mm=String(Math.floor(s/60)).padStart(2,"0"),ss=String(s%60).padStart(2,"0");
-    $("privacyTimer").textContent=mm+":"+ss;
-  },500);
-}
-function closePrivacy(){
-  $("privacyOverlay").classList.add("hidden");
-  clearInterval(privacyTimer);
-}
+// ===== privacy =====
+let pTimer=null,pStart=0;
+function openPrivacy(){$("privacy").classList.remove("hidden");pStart=Date.now();
+  pTimer=setInterval(()=>{const s=Math.floor((Date.now()-pStart)/1000);
+    $("privacyTimer").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");},500);}
+function closePrivacy(){$("privacy").classList.add("hidden");clearInterval(pTimer);}
 
-// ============================================================
-// 질문방
-// ============================================================
-async function loadQuestions(){
+// ===== Q&A =====
+async function loadQuestions(force){
   if(!token)return;
+  // 이미 불러온 적 있으면 즉시 렌더(캐시) 후 백그라운드 갱신
+  if(allQuestions.length && !force){
+    renderQuestions();
+  }
   try{
-    const list=await api("/api/questions");
-    const wrap=$("qList");wrap.innerHTML="";
-    if(!list.length){wrap.innerHTML='<div style="color:var(--sub);grid-column:1/-1;padding:30px;text-align:center">아직 질문이 없어요. 첫 질문을 올려보세요!</div>';return;}
-    list.forEach(q=>{
-      const card=document.createElement("div");card.className="q-card";
-      card.onclick=()=>openDetail(q.id);
-      const thumb=q.image_path
-        ? `<img class="thumb" src="${q.image_path}"/>`
-        : `<div class="thumb noimg">사진 없음</div>`;
-      card.innerHTML=`${thumb}<div class="body">
-        <span class="subject">${escapeHtml(q.subject)}</span>
-        <div class="preview">${escapeHtml(q.body||"")}</div>
-        <div class="meta"><span>${q.student_id}</span><span>💬 ${q.answer_count}</span></div>
+    const data=await api("/api/questions");
+    allQuestions=data;
+    renderQuestions();
+  }catch(e){ if(!allQuestions.length) toast(e.message); }
+}
+function setSort(m){sortMode=m;
+  ["new","old","ans"].forEach(k=>$("sort-"+k).classList.toggle("active",k===m));
+  renderQuestions();
+}
+// 검색 입력 디바운스 (키 입력마다 재렌더 방지)
+let _searchTimer=null;
+function onSearchInput(){
+  clearTimeout(_searchTimer);
+  _searchTimer=setTimeout(renderQuestions,200);
+}
+function renderQuestions(){
+  const kw=$("qSearch").value.trim().toLowerCase();
+  let list=allQuestions.filter(q=>{
+    if(!kw)return true;
+    return (q.subject||"").toLowerCase().includes(kw)
+      ||(q.body||"").toLowerCase().includes(kw)
+      ||(q.student_id||"").toLowerCase().includes(kw);
+  });
+  list.sort((a,b)=>{
+    if(sortMode==="new")return new Date(b.created_at)-new Date(a.created_at);
+    if(sortMode==="old")return new Date(a.created_at)-new Date(b.created_at);
+    return (b.answer_count||0)-(a.answer_count||0);
+  });
+  const wrap=$("qGrid");
+  if(!list.length){
+    wrap.innerHTML=`<div class="q-empty">${kw?"검색 결과가 없어요.":"아직 질문이 없어요. 첫 질문을 올려보세요."}</div>`;return;
+  }
+  // DocumentFragment로 한 번에 추가 (리플로우 최소화)
+  const frag=document.createDocumentFragment();
+  const myId=me.studentId, staff=isStaff();
+  list.forEach(q=>{
+    const card=document.createElement("div");
+    card.className="q-card"+((q.student_id===myId||staff)?" mine":"");
+    card.onclick=()=>openDetail(q.id);
+    const thumb=q.image_path
+      ? `<img class="thumb" src="${q.image_path}" loading="lazy" decoding="async"/>`
+      : `<div class="thumb noimg">사진 없음</div>`;
+    card.innerHTML=`${thumb}
+      <button class="del" title="삭제" onclick="event.stopPropagation();deleteQuestion(${q.id})">×</button>
+      <div class="cbody">
+        <span class="subj">${esc(q.subject)}</span>
+        <div class="ctext">${esc(q.body||"")}</div>
+        <div class="cmeta"><span>${esc(q.student_id)} · ${timeAgo(q.created_at)}</span><span>답변 ${q.answer_count||0}</span></div>
       </div>`;
-      wrap.appendChild(card);
-    });
+    frag.appendChild(card);
+  });
+  wrap.innerHTML="";
+  wrap.appendChild(frag);
+}
+async function deleteQuestion(id){
+  if(!confirm("이 질문을 삭제할까요? 답변도 함께 사라져요."))return;
+  try{await api("/api/questions/"+id,{method:"DELETE"});toast("삭제했어요.");loadQuestions();
+    if(currentQid===id)closeDetail();
   }catch(e){toast(e.message);}
 }
 
-// 질문 작성 모달
 function openAskModal(){$("askModal").classList.remove("hidden");}
-function closeAskModal(){
-  $("askModal").classList.add("hidden");
-  $("askSubject").value="";$("askBody").value="";$("askImage").value="";
-  $("askPreview").classList.add("hidden");$("askMsg").textContent="";
+function closeAskModal(){$("askModal").classList.add("hidden");
+  $("askSubject").value="";$("askBody").value="";$("askImage").value="";$("askPreview").classList.add("hidden");$("askMsg").textContent="";}
+function previewAsk(input){const f=input.files[0];if(!f)return;const img=$("askPreview");img.src=URL.createObjectURL(f);img.classList.remove("hidden");}
+
+// 업로드 전 이미지 압축: 긴 변 최대 1280px, JPEG 품질 0.8
+// 큰 카메라 사진(수 MB)을 수백 KB로 줄여 목록 렉/전송 부담 해소
+async function compressImage(file, maxSize=1280, quality=0.8){
+  // 이미지가 아니거나 이미 작으면 원본 사용
+  if(!file || !/^image\//.test(file.type)) return file;
+  try{
+    const bitmap = await createImageBitmap(file).catch(()=>null);
+    let w,h,src;
+    if(bitmap){ w=bitmap.width; h=bitmap.height; src=bitmap; }
+    else{
+      // createImageBitmap 미지원 폴백
+      src = await new Promise((res,rej)=>{
+        const im=new Image(); im.onload=()=>res(im); im.onerror=rej;
+        im.src=URL.createObjectURL(file);
+      });
+      w=src.naturalWidth; h=src.naturalHeight;
+    }
+    // 이미 충분히 작으면 원본 그대로
+    if(Math.max(w,h)<=maxSize && file.size < 700*1024) return file;
+    const scale=Math.min(1, maxSize/Math.max(w,h));
+    const cw=Math.round(w*scale), ch=Math.round(h*scale);
+    const canvas=document.createElement("canvas");
+    canvas.width=cw; canvas.height=ch;
+    const ctx=canvas.getContext("2d");
+    ctx.drawImage(src,0,0,cw,ch);
+    if(bitmap && bitmap.close) bitmap.close();
+    const blob=await new Promise(res=>canvas.toBlob(res,"image/jpeg",quality));
+    if(!blob) return file;
+    // 압축 결과가 원본보다 크면 원본 사용
+    if(blob.size>=file.size) return file;
+    return new File([blob], (file.name||"photo").replace(/\.\w+$/,"")+".jpg", {type:"image/jpeg"});
+  }catch(e){ return file; }
 }
-function previewAsk(input){
-  const f=input.files[0];if(!f)return;
-  const img=$("askPreview");img.src=URL.createObjectURL(f);img.classList.remove("hidden");
-}
+let _submittingQuestion=false;
 async function submitQuestion(){
-  const subject=$("askSubject").value.trim();
-  const msg=$("askMsg");msg.className="msg";
-  if(!subject){msg.className="msg err";msg.textContent="과목을 입력하세요.";return;}
-  const fd=new FormData();
-  fd.append("subject",subject);
-  fd.append("body",$("askBody").value);
-  if($("askImage").files[0]) fd.append("image",$("askImage").files[0]);
+  if(_submittingQuestion)return;
+  const subject=$("askSubject").value.trim(),msg=$("askMsg");msg.className="msg";
+  if(!subject){msg.className="msg err";msg.textContent="과목을 선택하세요.";return;}
+  _submittingQuestion=true;
+  const btn=$("askModal").querySelector(".btn-pill");
+  if(btn){btn.disabled=true;btn.textContent="올리는 중...";}
+  const fd=new FormData();fd.append("subject",subject);fd.append("body",$("askBody").value);
+  const rawImg=$("askImage").files[0];
+  if(rawImg){
+    const compressed=await compressImage(rawImg);
+    fd.append("image",compressed);
+  }
   try{
     const r=await fetch("/api/questions",{method:"POST",headers:{Authorization:"Bearer "+token},body:fd});
     const d=await r.json();if(!r.ok)throw new Error(d.error||"실패");
-    closeAskModal();toast("질문이 올라왔어요!");loadQuestions();
+    closeAskModal();toast("질문을 올렸어요.");loadQuestions(true);
   }catch(e){msg.className="msg err";msg.textContent=e.message;}
+  finally{
+    _submittingQuestion=false;
+    if(btn){btn.disabled=false;btn.textContent="올리기";}
+  }
 }
 
-// 질문 상세
 let currentQid=null;
 async function openDetail(id){
   currentQid=id;
+  resetAnsInput();
   try{
     const {question,answers}=await api("/api/questions/"+id);
     $("detailSubject").textContent=question.subject;
-    if(question.image_path){$("detailImg").src=question.image_path;$("detailImg").classList.remove("hidden");}
-    else $("detailImg").classList.add("hidden");
+    if(question.image_path){
+      $("detailImg").src=question.image_path;$("detailImg").classList.remove("hidden");
+      $("detailImgDl").classList.remove("hidden");
+      $("detailImgDl").onclick=()=>downloadImage(question.image_path,`질문_${question.subject}_${id}`);
+    }else{ $("detailImg").classList.add("hidden"); $("detailImgDl").classList.add("hidden"); }
     $("detailBody").textContent=question.body||"(내용 없음)";
-    $("detailMeta").textContent=`작성자 ${question.student_id} · ${new Date(question.created_at).toLocaleString()}`;
+    $("detailMeta").textContent=`${question.student_id} · ${timeAgo(question.created_at)}`;
+    $("detailDelWrap").innerHTML=(question.student_id===me.studentId||isStaff())
+      ?`<button class="text-link" style="font-size:14px;color:#d70015" onclick="deleteQuestion(${id})">이 질문 삭제</button>`:"";
     renderAnswers(answers);
     $("detailModal").classList.remove("hidden");
   }catch(e){toast(e.message);}
 }
+// 이미지 다운로드 (다른 도메인이라 blob으로 받아 저장)
+async function downloadImage(url, filename){
+  try{
+    toast("사진을 저장하는 중...");
+    const res=await fetch(url);
+    const blob=await res.blob();
+    const ext=(blob.type.split("/")[1]||"jpg").replace("jpeg","jpg");
+    const a=document.createElement("a");
+    const objUrl=URL.createObjectURL(blob);
+    a.href=objUrl; a.download=(filename||"photo")+"."+ext;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(objUrl),1000);
+  }catch(e){
+    // 실패 시 새 탭으로 열어서 길게 눌러 저장하도록 안내
+    window.open(url,"_blank");
+    toast("이미지를 새 탭에서 열었어요. 길게 눌러 저장하세요.");
+  }
+}
 function renderAnswers(answers){
   const wrap=$("answerList");wrap.innerHTML="";
-  if(!answers.length){wrap.innerHTML='<div style="color:var(--sub);font-size:13px;padding:8px 0">아직 답변이 없어요. 첫 답변을 달아주세요!</div>';return;}
-  answers.forEach(a=>{
-    const d=document.createElement("div");d.className="answer";
-    d.innerHTML=`<div class="who">${a.student_id} · ${new Date(a.created_at).toLocaleString()}</div>${escapeHtml(a.body)}`;
-    wrap.appendChild(d);
-  });
+  if(!answers.length){wrap.innerHTML=`<div style="color:var(--ink-48);font-size:14px;padding:6px 0 12px">아직 답변이 없어요. 첫 답변을 달아주세요.</div>`;return;}
+  answers.forEach(a=>{const d=document.createElement("div");d.className="ans";
+    const canDel=(a.student_id===me.studentId||isStaff());
+    const delBtn=canDel?`<button class="ans-del" onclick="deleteAnswer(${a.id})" title="삭제">×</button>`:"";
+    const imgHtml=a.image_path?`<img class="ans-img" src="${a.image_path}" loading="lazy"/><button class="img-dl-btn small" onclick="downloadImage('${a.image_path}','답변_${a.id}')">⬇ 사진 저장</button>`:"";
+    const txtHtml=a.body?`<div class="txt">${esc(a.body)}</div>`:"";
+    d.innerHTML=`<div class="ans-top"><div class="who">${esc(a.student_id)} · ${timeAgo(a.created_at)}</div>${delBtn}</div>${txtHtml}${imgHtml}`;
+    wrap.appendChild(d);});
 }
-function closeDetail(){$("detailModal").classList.add("hidden");$("answerInput").value="";}
-async function submitAnswer(){
-  const body=$("answerInput").value.trim();if(!body)return;
-  try{
-    await api("/api/questions/"+currentQid+"/answers",{method:"POST",body:JSON.stringify({body})});
-    $("answerInput").value="";
-    const {answers}=await api("/api/questions/"+currentQid);
-    renderAnswers(answers);loadQuestions();
+async function deleteAnswer(id){
+  if(!confirm("이 답변을 삭제할까요?"))return;
+  try{await api("/api/answers/"+id,{method:"DELETE"});
+    const {answers}=await api("/api/questions/"+currentQid);renderAnswers(answers);loadQuestions();
   }catch(e){toast(e.message);}
 }
+function previewAns(input){
+  const f=input.files[0];
+  const img=$("ansPreview"),btn=document.querySelector(".ans-photo-btn");
+  if(!f){img.classList.add("hidden");if(btn)btn.classList.remove("has-img");return;}
+  img.src=URL.createObjectURL(f);img.classList.remove("hidden");
+  if(btn)btn.classList.add("has-img");
+}
+function resetAnsInput(){
+  $("answerInput").value="";$("ansImage").value="";
+  $("ansPreview").classList.add("hidden");
+  const btn=document.querySelector(".ans-photo-btn");if(btn)btn.classList.remove("has-img");
+}
+function closeDetail(){$("detailModal").classList.add("hidden");resetAnsInput();currentQid=null;}
+let _submittingAnswer=false;
+async function submitAnswer(){
+  if(_submittingAnswer)return;
+  const body=$("answerInput").value.trim();
+  const file=$("ansImage").files[0];
+  if(!body && !file){toast("답변 내용이나 사진을 넣어주세요.");return;}
+  _submittingAnswer=true;
+  const fd=new FormData();fd.append("body",body);
+  if(file){
+    const compressed=await compressImage(file);
+    fd.append("image",compressed);
+  }
+  try{
+    const r=await fetch("/api/questions/"+currentQid+"/answers",{method:"POST",headers:{Authorization:"Bearer "+token},body:fd});
+    const d=await r.json();if(!r.ok)throw new Error(d.error||"실패");
+    resetAnsInput();
+    const {answers}=await api("/api/questions/"+currentQid);renderAnswers(answers);loadQuestions(true);
+  }catch(e){toast(e.message);}
+  finally{_submittingAnswer=false;}
+}
 
-// 엔터로 로그인
-$("loginPw").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+// ===== Admin =====
+let adminUsers=[];
+async function loadAdminUsers(){
+  if(!isStaff())return;
+  $("adminSub").textContent=isOwner()
+    ?"학생 계정을 관리하고, 관리자를 임명·박탈할 수 있습니다."
+    :"학생 계정을 관리합니다. (관리자 임명은 운영자만 가능)";
+  try{adminUsers=await api("/api/admin/users");renderAdminUsers();}
+  catch(e){toast(e.message);}
+  loadDeviceStats();
+}
+async function loadDeviceStats(){
+  try{
+    const s=await api("/api/admin/device-stats");
+    $("dsTotal").textContent=s.total;
+    $("dsLimit").textContent="/ "+s.limit;
+    const pct=Math.min(100,Math.round(s.total/s.limit*100));
+    const fill=$("dsFill");
+    fill.style.width=pct+"%";
+    fill.classList.remove("warn","danger");
+    if(pct>=90) fill.classList.add("danger");
+    else if(pct>=70) fill.classList.add("warn");
+    $("dsSub").textContent=`${s.uniqueUsers}명이 기기를 등록했어요 · MAU 한도의 ${pct}% 사용 중`;
+  }catch(e){ $("dsSub").textContent="기기 현황을 불러오지 못했어요."; }
+}
+function renderAdminUsers(){
+  const kw=$("adminSearch").value.trim().toLowerCase();
+  const list=adminUsers.filter(u=>!kw||u.student_id.toLowerCase().includes(kw)||(u.nickname||"").toLowerCase().includes(kw));
+  const wrap=$("adminTable");
+  let html=`<div class="arow head"><div>학번</div><div>이름 / 권한</div><div style="text-align:right">관리</div></div>`;
+  if(!list.length){html+=`<div class="q-empty" style="border:none">계정이 없어요.</div>`;}
+  list.forEach(u=>{
+    const isOwnerRow=u.role==="owner",isAdminRow=u.role==="admin";
+    const badge=isOwnerRow?`<span class="role-badge owner">운영자</span>`:(isAdminRow?`<span class="role-badge admin">관리자</span>`:"");
+    let acts="";
+    if(!isOwnerRow)acts+=`<button class="aact" onclick="resetPw('${u.student_id}')">비번 초기화</button>`;
+    if(!isOwnerRow)acts+=`<button class="aact" onclick="openRenameModal('${u.student_id}','${(u.nickname||u.student_id).replace(/'/g,"\\'")}')">이름 변경</button>`;
+    // 기기 등록된 경우 초기화 버튼
+    if((u.device_count||0)>0)acts+=`<button class="aact" onclick="resetDevices('${u.student_id}')">기기 초기화(${u.device_count})</button>`;
+    if(isOwner()&&!isOwnerRow){
+      acts+=isAdminRow
+        ?`<button class="aact" onclick="setRole('${u.student_id}','student')">관리자 박탈</button>`
+        :`<button class="aact primary" onclick="setRole('${u.student_id}','admin')">관리자 임명</button>`;
+    }
+    if(!isOwnerRow&&(!isAdminRow||isOwner())&&u.student_id!==me.studentId){
+      acts+=`<button class="aact danger" onclick="kickUser('${u.student_id}')">추방</button>`;
+    }
+    // 기기 수 배지 (등록 기기가 있으면 표시)
+    const devBadge=(u.device_count||0)>0
+      ?`<span class="dev-badge" title="등록 기기 수">📱${u.device_count}</span>`:"";
+    html+=`<div class="arow">
+      <div class="aid">${esc(u.student_id)}</div>
+      <div class="aname">${esc(u.nickname||u.student_id)} ${badge}${devBadge}</div>
+      <div class="aacts">${acts||'<span style="color:var(--ink-48);font-size:12px">—</span>'}</div>
+    </div>`;
+  });
+  wrap.innerHTML=html;
+}
+async function resetPw(id){
+  if(!confirm(`${id} 계정의 비밀번호를 1234로 초기화할까요?`))return;
+  try{await api("/api/admin/users/"+id+"/reset-password",{method:"POST"});toast(`${id} 비밀번호를 1234로 초기화했어요.`);}
+  catch(e){toast(e.message);}
+}
+async function setRole(id,role){
+  const msg=role==="admin"?`${id} 님을 관리자로 임명할까요?`:`${id} 님의 관리자 권한을 박탈할까요?`;
+  if(!confirm(msg))return;
+  try{await api("/api/admin/users/"+id+"/role",{method:"POST",body:JSON.stringify({role})});
+    toast(role==="admin"?"관리자로 임명했어요.":"관리자 권한을 박탈했어요.");loadAdminUsers();
+  }catch(e){toast(e.message);}
+}
+async function kickUser(id){
+  if(!confirm(`${id} 계정을 추방(삭제)할까요? 되돌릴 수 없어요.`))return;
+  try{await api("/api/admin/users/"+id,{method:"DELETE"});toast(`${id} 계정을 추방했어요.`);loadAdminUsers();}
+  catch(e){toast(e.message);}
+}
+async function resetDevices(id){
+  if(!confirm(`${id} 님의 등록 기기를 모두 초기화할까요?\n학생이 새 기기로 다시 등록할 수 있게 됩니다.`))return;
+  try{await api("/api/admin/users/"+id+"/devices",{method:"DELETE"});toast(`${id} 님의 기기를 초기화했어요.`);loadAdminUsers();}
+  catch(e){toast(e.message);}
+}
+function openAddUserModal(){$("addUserModal").classList.remove("hidden");$("addUserMsg").textContent="";}
+function closeAddUserModal(){$("addUserModal").classList.add("hidden");$("newUserId").value="";$("newUserName").value="";}
+async function submitAddUser(){
+  const studentId=$("newUserId").value.trim(),nickname=$("newUserName").value.trim(),msg=$("addUserMsg");
+  msg.className="msg";
+  if(!/^\d{5}$/.test(studentId)){msg.className="msg err";msg.textContent="학번은 5자리 숫자로 입력하세요.";return;}
+  try{await api("/api/admin/users",{method:"POST",body:JSON.stringify({studentId,nickname})});
+    closeAddUserModal();toast(`${studentId} 계정을 추가했어요. (비번 1234)`);loadAdminUsers();
+  }catch(e){msg.className="msg err";msg.textContent=e.message;}
+}
+function openRenameModal(id, currentNick){
+  $("renameId").value=id;
+  $("renameNick").value=currentNick;
+  $("renameMsg").textContent="";
+  $("renameModal").classList.remove("hidden");
+  setTimeout(()=>$("renameNick").focus(),100);
+}
+function closeRenameModal(){$("renameModal").classList.add("hidden");}
+async function submitRename(){
+  const id=$("renameId").value, nick=$("renameNick").value.trim(), msg=$("renameMsg");
+  msg.className="msg";
+  if(!nick){msg.className="msg err";msg.textContent="이름을 입력하세요.";return;}
+  try{
+    await api("/api/admin/users/"+id+"/nickname",{method:"POST",body:JSON.stringify({nickname:nick})});
+    closeRenameModal();toast(`${id} 이름을 '${nick}'으로 변경했어요.`);loadAdminUsers();
+  }catch(e){msg.className="msg err";msg.textContent=e.message;}
+}
 </script>
 </body>
 </html>

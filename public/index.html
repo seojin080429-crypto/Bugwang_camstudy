@@ -303,6 +303,19 @@
   .modal-card h2{font-family:var(--font-display);font-size:24px;font-weight:600;letter-spacing:-0.4px;margin:0 0 18px}
   /* 안내(사용법/패치노트) 모달 */
   .guide-tabs{display:flex;background:var(--parchment);border-radius:9999px;padding:3px;margin-bottom:18px}
+  /* 환영 튜토리얼 */
+  .welcome-card{max-width:420px;text-align:center}
+  .wc-slide{padding:14px 6px 8px;min-height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .wc-emoji{font-size:64px;line-height:1;margin-bottom:18px}
+  .wc-title{font-family:var(--font-display);font-size:23px;font-weight:600;letter-spacing:-0.4px;margin:0 0 12px}
+  .wc-desc{font-size:15.5px;line-height:1.6;letter-spacing:-0.2px;color:var(--ink-80);margin:0;max-width:330px}
+  .wc-desc b{color:var(--ink)}
+  .wc-dots{display:flex;justify-content:center;gap:8px;margin:18px 0 22px}
+  .wc-dot{width:8px;height:8px;border-radius:9999px;background:var(--hairline);transition:.2s}
+  .wc-dot.active{background:var(--primary);width:22px}
+  .wc-actions{display:flex;gap:10px}
+  .wc-actions .btn-cancel{flex:0 0 auto;padding:13px 20px}
+  .wc-actions .btn-pill{flex:1}
   .guide-t{flex:1;font-size:15px;letter-spacing:-0.2px;color:var(--ink-80);
     border-radius:9999px;padding:9px 0;transition:.15s}
   .guide-t.active{background:var(--canvas);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -723,6 +736,22 @@
   <button onclick="closePrivacy()">화면 다시 보기</button>
 </div>
 
+<!-- 환영 튜토리얼 modal (첫 로그인 시 1회) -->
+<div id="welcomeModal" class="modal hidden">
+  <div class="modal-card welcome-card">
+    <div class="wc-slide" id="wcSlide">
+      <div class="wc-emoji" id="wcEmoji">👋</div>
+      <h2 class="wc-title" id="wcTitle"></h2>
+      <p class="wc-desc" id="wcDesc"></p>
+    </div>
+    <div class="wc-dots" id="wcDots"></div>
+    <div class="wc-actions">
+      <button class="btn-cancel" id="wcSkip" onclick="closeWelcome()">건너뛰기</button>
+      <button class="btn-pill" id="wcNext" onclick="welcomeNext()">다음</button>
+    </div>
+  </div>
+</div>
+
 <!-- 안내(사용법/패치노트) modal -->
 <div id="guideModal" class="modal hidden">
   <div class="modal-card">
@@ -775,7 +804,13 @@
     <!-- 패치노트 -->
     <div id="guide-patch" class="guide-panel hidden">
       <div class="patch-item">
-        <div class="patch-ver">v2.7 <span class="patch-tag new">최신</span></div>
+        <div class="patch-ver">v2.8 <span class="patch-tag new">최신</span></div>
+        <ul>
+          <li><b>환영 안내</b> 추가 👋 — 처음 들어온 분에게 앱 사용법을 간단히 소개해드려요.</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v2.7</div>
         <ul>
           <li><b>다크 모드</b> 추가 🌙 — 상단의 달/해 버튼으로 어두운 화면과 밝은 화면을 전환할 수 있어요. 밤에 공부할 때 눈이 편해요.</li>
         </ul>
@@ -995,6 +1030,7 @@ async function doLogin(){
     saveSession(); // 새로고침 대비 저장
     enterApp();
     if(d.mustChange){toast("초기 비밀번호 사용 중 · 변경을 권장해요");openPwModal();}
+    else maybeShowWelcome();  // 첫 로그인이면 환영 튜토리얼 (비번 변경 팝업과 안 겹치게)
   }catch(e){msg.className="msg err";msg.textContent=e.message;}
 }
 // 로그인 성공 후 앱 화면 진입 (로그인/복원 공통)
@@ -1035,7 +1071,7 @@ window.addEventListener("load",()=>{restoreSession();});
 
 // ===== password =====
 // ===== 안내(사용법/패치노트) =====
-const APP_VERSION="v2.7";
+const APP_VERSION="v2.8";
 // ===== 다크/라이트 모드 =====
 function applyTheme(dark){
   document.body.classList.toggle("dark", dark);
@@ -1057,6 +1093,47 @@ function restoreTheme(){
 }
 // 페이지 로드 시 테마 복원
 restoreTheme();
+
+// ===== 환영 튜토리얼 (첫 로그인 1회) =====
+const WELCOME_SLIDES=[
+  {emoji:"👋",title:"부광 캠스터디에 오신 걸 환영해요!",desc:"우리 반 친구들과 함께 공부하고, 모르는 건 질문하는 공간이에요. 핵심 기능을 빠르게 둘러볼게요."},
+  {emoji:"📷",title:"캠스터디",desc:"<b>참여하기</b>를 누르면 친구들과 화상으로 함께 자습할 수 있어요. 마이크·카메라는 꺼진 채로 시작하니 부담 없어요. <br>(캠스터디는 신청한 학생만 이용할 수 있어요)"},
+  {emoji:"💬",title:"질문방",desc:"모르는 문제는 사진을 찍어 올리고, 친구들의 답변을 받아보세요. 답변도 사진으로 달 수 있어요. <b>누구나 이용 가능</b>해요!"},
+  {emoji:"🏆",title:"출석 & 랭킹",desc:"캠스터디에서 <b>출석하기</b>를 누르면 공부 시간이 쌓여요. 주간·월간 <b>랭킹</b>에서 내 순위를 확인해보세요."},
+  {emoji:"🌙",title:"이제 시작해볼까요?",desc:"상단의 <b>안내</b>에서 사용법을 다시 볼 수 있고, <b>달/해 버튼</b>으로 다크 모드도 켤 수 있어요. 즐겁게 공부해요!"},
+];
+let wcIdx=0;
+function openWelcome(){
+  wcIdx=0;
+  renderWelcomeSlide();
+  $("welcomeModal").classList.remove("hidden");
+}
+function renderWelcomeSlide(){
+  const s=WELCOME_SLIDES[wcIdx];
+  $("wcEmoji").textContent=s.emoji;
+  $("wcTitle").textContent=s.title;
+  $("wcDesc").innerHTML=s.desc;
+  // 점 인디케이터
+  $("wcDots").innerHTML=WELCOME_SLIDES.map((_,i)=>`<span class="wc-dot ${i===wcIdx?"active":""}"></span>`).join("");
+  // 마지막 슬라이드면 버튼 "시작하기"
+  const last=wcIdx===WELCOME_SLIDES.length-1;
+  $("wcNext").textContent=last?"시작하기":"다음";
+  $("wcSkip").style.visibility=last?"hidden":"visible";
+}
+function welcomeNext(){
+  if(wcIdx<WELCOME_SLIDES.length-1){ wcIdx++; renderWelcomeSlide(); }
+  else closeWelcome();
+}
+function closeWelcome(){
+  $("welcomeModal").classList.add("hidden");
+  try{ localStorage.setItem("camstudy_welcomed","1"); }catch(e){}
+}
+// 첫 로그인이면(아직 환영을 안 봤으면) 튜토리얼 표시
+function maybeShowWelcome(){
+  let seen=false;
+  try{ seen=localStorage.getItem("camstudy_welcomed")==="1"; }catch(e){}
+  if(!seen) openWelcome();
+}
 
 function openGuide(){
   $("guideVersion").textContent=APP_VERSION;
@@ -1346,8 +1423,15 @@ function showTab(t){
 
 // ===== socket + study =====
 function connectSocket(){
-  socket=io({auth:{token}});
-  socket.on("connect_error",e=>toast("연결 오류: "+e.message));
+  socket=io({
+    auth:{token},
+    reconnection:true,
+    reconnectionAttempts:Infinity,   // 계속 재시도
+    reconnectionDelay:1000,
+    reconnectionDelayMax:5000,
+    timeout:20000,
+  });
+  socket.on("connect_error",e=>{ /* 조용히 무시하고 자동 재시도 */ });
   socket.on("participant-count",n=>{$("studyCount").textContent=n;});
   socket.on("participant-list",list=>{ studyParticipants=list||[]; });
   socket.on("chat",m=>addChat(m));
@@ -1372,14 +1456,16 @@ function connectSocket(){
     }
   });
 
-  // 재연결 시 채팅방 재입장 (서버가 강제로 끊었을 때만)
-  socket.on("disconnect",(reason)=>{
-    if(reason==="io server disconnect") socket._wasInStudy=inStudy;
-  });
+  // 연결이 끊겼다가 다시 붙으면(네트워크 유휴/타임아웃/절전 등 모든 경우),
+  // 캠스터디 참여 중이었다면 다시 입장 신호를 보내 "N명 참여중"에서 빠지지 않게 함.
   socket.on("connect",()=>{
-    if(!socket._wasInStudy) return;
-    socket._wasInStudy=false;
-    if(inStudy) socket.emit("join-study");
+    if(inStudy) socket.emit("join-study",{deviceId:getDeviceId()});
+  });
+  socket.on("disconnect",(reason)=>{
+    // 서버가 의도적으로 끊은 경우(io server disconnect)는 자동 재연결이 안 되므로 수동으로 다시 연결
+    if(reason==="io server disconnect"){
+      setTimeout(()=>{ try{ socket.connect(); }catch(e){} }, 1000);
+    }
   });
 }
 
@@ -1428,7 +1514,7 @@ async function joinStudy(){
   $("btnAttend").disabled=false;
   $("jitsiContainer").classList.add("active");
   $("studyEmpty").style.display="none";
-  socket.emit("join-study");
+  socket.emit("join-study",{deviceId:getDeviceId()});
   requestWakeLock();
 }
 
@@ -1594,8 +1680,16 @@ async function releaseWakeLock(){
 }
 // 화면이 잠깐 꺼졌다 켜지면 Wake Lock이 자동 해제되므로, 복귀 시 다시 요청
 document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState==="visible" && inStudy && !wakeLock){
-    requestWakeLock();
+  if(document.visibilityState==="visible"){
+    if(inStudy && !wakeLock) requestWakeLock();
+    // 화면 복귀 시 소켓이 끊겨있으면 즉시 재연결 → "N명 참여중"에서 빠지지 않게
+    if(socket && socket.disconnected){
+      try{ socket.connect(); }catch(e){}
+    }
+    // 연결돼 있는데 혹시 모를 상태 불일치 대비, 참여 중이면 재입장 신호
+    else if(socket && socket.connected && inStudy){
+      socket.emit("join-study",{deviceId:getDeviceId()});
+    }
   }
 });
 // 새로고침/창 닫기 시 출석 세션 종료 (keepalive로 페이지 떠나도 전송 시도)

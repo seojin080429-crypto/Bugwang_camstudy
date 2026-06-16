@@ -63,6 +63,15 @@
   body.dark .tabbar{background:rgba(28,28,30,.92);border-top-color:var(--hairline)}
   body.dark .cam-notice{background:#3a2f1a;color:#e0b350;border-color:#5a4a20}
   body.dark .q-card .subj,body.dark .ans .who{background:var(--parchment)}
+  /* 입력칸: 다크모드에서 배경/글씨 보정 */
+  body.dark input,body.dark textarea,body.dark select{background:var(--pearl);color:var(--ink)}
+  body.dark .chat .ch-input input,body.dark .ans-input input,body.dark .field input,
+  body.dark .mrow input,body.dark .mrow textarea,body.dark .search-box input,
+  body.dark #askSubject{background:var(--pearl);color:var(--ink);border-color:var(--hairline)}
+  body.dark .search-box{background:var(--parchment)}
+  body.dark .chat .ch-input input{background:var(--pearl)}
+  /* 부광 로고: 검은 캘리그래피라 다크모드에선 흰색으로 반전 */
+  body.dark .brand-logo{filter:invert(1) brightness(1.8)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0}
   body{font-family:var(--font-text);background:var(--canvas);color:var(--ink);

@@ -70,6 +70,14 @@ async function ensureUser(studentId, nickname) {
 }
 
 async function seedClassAccounts() {
+  // 이미 계정이 하나라도 있으면 시드를 건너뜀
+  //  → 서버 재시작 때마다 추방한 계정이 부활하는 문제 방지.
+  //  (완전히 빈 DB에서 첫 배포할 때만 1회 시드)
+  const { count } = await supabase.from("users").select("*", { count: "exact", head: true });
+  if (count && count > 0) {
+    console.log(`기존 계정 ${count}개 확인 — 시드를 건너뜁니다.`);
+    return;
+  }
   for (let n = 30101; n <= 30128; n++) {
     try { await ensureUser(String(n)); } catch (e) { console.error("시드 오류:", n, e.message); }
   }

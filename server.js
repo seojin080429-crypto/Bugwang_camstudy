@@ -88,7 +88,10 @@ async function seedClassAccounts() {
 // ---- Express ----
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  pingTimeout: 90000,    // 90초간 응답 없으면 끊김 (모바일 절전/백그라운드 대비)
+  pingInterval: 25000,   // 25초마다 핑
+});
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -620,19 +623,32 @@ function broadcastCount() {
 io.on("connection", (socket) => {
   socket.emit("participant-count", participants.size);
 
-  socket.on("join-study", () => {
-    // 같은 학번 다른 기기는 채팅방에서 내보냄(1세션)
+  socket.on("join-study", (payload) => {
+    const myDeviceId = (payload && payload.deviceId) ? String(payload.deviceId).slice(0, 100) : null;
+    // 같은 학번이 이미 참여 중이었는지 (재연결/재입장 판단용)
+    let wasAlreadyIn = false;
+    // 같은 학번 다른 기기는 채팅방에서 내보냄(1세션). 단, 같은 기기의 재연결은 조용히 교체.
     for (const [otherId, p] of participants.entries()) {
       if (otherId !== socket.id && p.studentId === socket.user.studentId) {
+        wasAlreadyIn = true;
+        const sameDevice = myDeviceId && p.deviceId && myDeviceId === p.deviceId;
         const oldSocket = io.sockets.sockets.get(otherId);
-        if (oldSocket) { oldSocket.emit("force-leave-study", { reason: "다른 기기에서 입장했어요." }); oldSocket.leave(ROOM); }
+        // 다른 기기이고 실제로 살아있으면 내보냄. 같은 기기(재연결)면 추방 메시지 없이 조용히 정리.
+        if (!sameDevice && oldSocket && oldSocket.connected) {
+          oldSocket.emit("force-leave-study", { reason: "다른 기기에서 입장했어요." });
+          oldSocket.leave(ROOM);
+        }
         participants.delete(otherId);
       }
     }
+    const alreadyHere = participants.has(socket.id);
     socket.join(ROOM);
-    participants.set(socket.id, { studentId: socket.user.studentId, nickname: socket.user.nickname || socket.user.studentId });
+    participants.set(socket.id, { studentId: socket.user.studentId, nickname: socket.user.nickname || socket.user.studentId, deviceId: myDeviceId });
     broadcastCount();
-    io.to(ROOM).emit("chat", { system: true, text: `${participants.get(socket.id).nickname} 님이 입장했습니다.`, ts: Date.now() });
+    // 처음 입장할 때만 입장 메시지 (재연결/재입장 시엔 도배 방지)
+    if (!wasAlreadyIn && !alreadyHere) {
+      io.to(ROOM).emit("chat", { system: true, text: `${participants.get(socket.id).nickname} 님이 입장했습니다.`, ts: Date.now() });
+    }
   });
 
   socket.on("chat", ({ text }) => {

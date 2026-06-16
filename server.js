@@ -303,6 +303,16 @@ app.post("/api/study/join", auth, async (req, res) => {
       return res.status(500).json({ error: "영상 서버 설정이 아직 안 됐어요. 관리자에게 문의해주세요." });
     }
     const studentId = req.user.studentId;
+    // 캠스터디 이용 권한 체크 (운영자/관리자는 항상 허용)
+    if (!isStaffRole(req.user.role)) {
+      const { data: u } = await supabase.from("users").select("cam_allowed").eq("student_id", studentId).maybeSingle();
+      if (!u || !u.cam_allowed) {
+        return res.status(403).json({
+          error: "캠스터디 이용이 허용되지 않은 계정이에요. 선생님께 신청해주세요. (질문방은 이용 가능)",
+          code: "CAM_NOT_ALLOWED",
+        });
+      }
+    }
     const deviceId = cleanDeviceId(req.body && req.body.deviceId);
     const deviceName = String((req.body && req.body.deviceName) || "").slice(0, 40);
     if (!deviceId) return res.status(400).json({ error: "기기 식별 정보가 없습니다." });
@@ -469,7 +479,7 @@ app.get("/api/ranking", auth, async (req, res) => {
 // 계정 목록 (+ 기기 수 포함)
 app.get("/api/admin/users", auth, requireStaff, async (req, res) => {
   try {
-    const { data } = await supabase.from("users").select("student_id, nickname, role, must_change, created_at").order("student_id", { ascending: true });
+    const { data } = await supabase.from("users").select("student_id, nickname, role, must_change, created_at, cam_allowed").order("student_id", { ascending: true });
     const { data: devs } = await supabase.from("devices").select("student_id");
     const devCount = {};
     (devs || []).forEach(d => { devCount[d.student_id] = (devCount[d.student_id] || 0) + 1; });
@@ -477,6 +487,7 @@ app.get("/api/admin/users", auth, requireStaff, async (req, res) => {
       student_id: u.student_id, nickname: u.nickname, role: resolveRole(u),
       must_change: !!u.must_change, created_at: u.created_at,
       device_count: devCount[u.student_id] || 0,
+      cam_allowed: isOwner(u.student_id) || resolveRole(u) === "admin" ? true : !!u.cam_allowed,
     }));
     res.json(list);
   } catch (e) { console.error(e); res.status(500).json({ error: "계정 목록을 불러오지 못했습니다." }); }
@@ -571,6 +582,20 @@ app.delete("/api/admin/users/:id/devices", auth, requireStaff, async (req, res) 
     await supabase.from("devices").delete().eq("student_id", target);
     res.json({ ok: true });
   } catch (e) { console.error(e); res.status(500).json({ error: "기기 초기화에 실패했습니다." }); }
+});
+
+// 캠스터디 이용 허용/차단 토글 (관리자)
+app.post("/api/admin/users/:id/cam-allowed", auth, requireStaff, async (req, res) => {
+  try {
+    const target = req.params.id;
+    const { allowed } = req.body || {};
+    if (isOwner(target)) return res.status(400).json({ error: "운영자는 항상 허용 상태입니다." });
+    const { data: tu } = await supabase.from("users").select("student_id, role").eq("student_id", target).maybeSingle();
+    if (!tu) return res.status(404).json({ error: "계정을 찾을 수 없습니다." });
+    if (resolveRole(tu) === "admin") return res.status(400).json({ error: "관리자는 항상 허용 상태입니다." });
+    await supabase.from("users").update({ cam_allowed: !!allowed }).eq("student_id", target);
+    res.json({ ok: true, cam_allowed: !!allowed });
+  } catch (e) { console.error(e); res.status(500).json({ error: "권한 변경에 실패했습니다." }); }
 });
 
 // SPA fallback

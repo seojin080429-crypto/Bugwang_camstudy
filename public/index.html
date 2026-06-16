@@ -359,6 +359,11 @@
   .ans-photo-btn:active{transform:scale(.92)}
   .ans-photo-btn.has-img{background:var(--primary);color:#fff}
   .ans .ans-img{width:100%;max-height:240px;object-fit:contain;border-radius:10px;margin-top:8px;background:var(--canvas)}
+  /* 사진 저장 버튼 */
+  .img-dl-btn{display:inline-flex;align-items:center;gap:4px;background:var(--parchment);color:var(--ink-80);
+    border-radius:9999px;padding:8px 16px;font-size:13px;letter-spacing:-0.2px;margin:8px 0 4px;transition:transform .12s}
+  .img-dl-btn:active{transform:scale(.95)}
+  .img-dl-btn.small{padding:6px 13px;font-size:12px;margin-top:6px}
 
   .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
     background:var(--ink);color:#fff;padding:12px 22px;border-radius:9999px;
@@ -519,6 +524,7 @@
       <div class="study-ctrls">
         <button class="ctrl join" id="btnJoin" onclick="toggleStudy()">참여하기</button>
         <button class="ctrl attend" id="btnAttend" onclick="toggleAttend()" disabled>출석하기</button>
+        <button class="ctrl" id="btnCam" onclick="toggleJitsiCam()" disabled>카메라 켜기</button>
         <button class="ctrl" id="btnFlipCam" onclick="flipJitsiCamera()" disabled>카메라 전환</button>
         <button class="ctrl" id="btnPrivacy" onclick="openPrivacy()" disabled>집중 모드</button>
       </div>
@@ -711,7 +717,16 @@
     <!-- 패치노트 -->
     <div id="guide-patch" class="guide-panel hidden">
       <div class="patch-item">
-        <div class="patch-ver">v2.2 <span class="patch-tag new">최신</span></div>
+        <div class="patch-ver">v2.3 <span class="patch-tag new">최신</span></div>
+        <ul>
+          <li><b>카메라 기본 꺼짐</b> — 입장 시 카메라가 꺼진 채로 시작해요. "카메라 켜기"로 켤 수 있어요.</li>
+          <li><b>카메라 끄기 버튼</b> 추가 — 컨트롤에서 바로 카메라를 켜고 끌 수 있어요.</li>
+          <li><b>출석 유지 개선</b> — 잠깐 다른 앱을 봐도 캠스터디·출석이 끊기지 않아요.</li>
+          <li><b>질문방 사진 저장</b> — 질문·답변 사진을 기기에 다운로드할 수 있어요.</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v2.2</div>
         <ul>
           <li><b>출석 + 공부시간 측정</b> — 캠스터디에서 "출석하기"를 누르면 공부 시간이 기록돼요.</li>
           <li><b>랭킹</b> 추가 — 주간·월간 누적 공부시간 순위를 볼 수 있어요. 🏆</li>
@@ -837,6 +852,7 @@
       <button class="btn-cancel" style="flex:none;padding:8px 16px;font-size:14px" onclick="closeDetail()">닫기</button>
     </div>
     <img id="detailImg" class="detail-img hidden"/>
+    <button id="detailImgDl" class="img-dl-btn hidden" onclick="">⬇ 사진 저장</button>
     <p id="detailBody" style="font-size:17px;line-height:1.5;letter-spacing:-0.374px;margin:0"></p>
     <div class="detail-meta" id="detailMeta"></div>
     <div id="detailDelWrap" style="margin-bottom:18px"></div>
@@ -935,7 +951,7 @@ window.addEventListener("load",()=>{restoreSession();});
 
 // ===== password =====
 // ===== 안내(사용법/패치노트) =====
-const APP_VERSION="v2.2";
+const APP_VERSION="v2.3";
 function openGuide(){
   $("guideVersion").textContent=APP_VERSION;
   showGuide("usage");
@@ -1328,7 +1344,7 @@ function startJitsi(cfg){
       // ── 마이크: 자습용이라 음성 불필요 → 끄고 시작 + 못 켜게 ──
       startWithAudioMuted:true,
       startAudioOnly:false,
-      startWithVideoMuted:false,          // 카메라는 켜고 시작
+      startWithVideoMuted:true,           // 카메라도 꺼진 채로 시작
       // ── 이름 입력/사전 입장 화면 완전히 생략 ──
       prejoinPageEnabled:false,
       prejoinConfig:{ enabled:false },
@@ -1366,7 +1382,10 @@ function startJitsi(cfg){
     userInfo:{ displayName: me.nickname },
   };
   jitsiApi=new JitsiMeetExternalAPI(domain, options);
+  // hangup(나가기) 버튼을 직접 눌렀을 때만 종료
   jitsiApi.addEventListener("readyToClose", ()=>{ leaveStudy(); });
+  // 주의: videoConferenceLeft로는 자동 종료하지 않음.
+  //  백그라운드 전환 시 일시적으로 발생할 수 있어, 잠깐 자리비움에도 캠스터디가 꺼지는 문제 방지.
   // 타일뷰 강제 함수 (여러 번/딜레이 두고 호출해서 확실히 적용)
   function forceTileView(){
     try{ jitsiApi.executeCommand("setTileView", true); }catch(e){}
@@ -1398,8 +1417,31 @@ function startJitsi(cfg){
       }catch(err){}
     });
   }
-  // 입장 완료되면 카메라 전환 버튼 활성화
-  jitsiApi.addEventListener("videoConferenceJoined", ()=>{ $("btnFlipCam").disabled=false; });
+  // 입장 완료되면 카메라 켜기/전환 버튼 활성화
+  jitsiApi.addEventListener("videoConferenceJoined", ()=>{
+    $("btnFlipCam").disabled=false;
+    $("btnCam").disabled=false;
+    camMuted=true;                       // 꺼진 채로 시작
+    updateCamBtn();
+  });
+  // Jitsi 안에서 카메라를 켜고/끄면 우리 버튼도 동기화
+  jitsiApi.addEventListener("videoMuteStatusChanged", (e)=>{
+    camMuted = !!(e && e.muted);
+    updateCamBtn();
+  });
+}
+
+// ===== 카메라 켜기/끄기 =====
+let camMuted=true;
+function updateCamBtn(){
+  const b=$("btnCam"); if(!b) return;
+  b.textContent = camMuted ? "카메라 켜기" : "카메라 끄기";
+  b.classList.toggle("on", !camMuted);
+}
+function toggleJitsiCam(){
+  if(!jitsiApi) return;
+  try{ jitsiApi.executeCommand("toggleVideo"); }catch(e){}
+  // 상태는 videoMuteStatusChanged 이벤트로 갱신됨
 }
 
 // ===== 카메라 전환 (전면 ↔ 후면) =====
@@ -1432,6 +1474,7 @@ function leaveStudy(){
   // 출석 중이었다면 자동 종료
   if(attending){ stopAttend(); }
   $("btnAttend").disabled=true;
+  $("btnCam").disabled=true;$("btnCam").textContent="카메라 켜기";$("btnCam").classList.remove("on");
   $("studyEmpty").style.display="block";
   releaseWakeLock();
 }
@@ -1451,8 +1494,14 @@ async function releaseWakeLock(){
 }
 // 화면이 잠깐 꺼졌다 켜지면 Wake Lock이 자동 해제되므로, 복귀 시 다시 요청
 document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState==="visible" && inStudy && !wakeLock){
-    requestWakeLock();
+  if(document.visibilityState==="visible"){
+    if(inStudy && !wakeLock) requestWakeLock();
+    // 백그라운드 동안 타이머가 느려졌을 수 있어 출석 시간 재동기화
+    if(attending){
+      api("/api/attend/status").then(r=>{
+        if(r.active){ attendStart=new Date(r.startedAt).getTime(); }
+      }).catch(()=>{});
+    }
   }
 });
 
@@ -1650,8 +1699,11 @@ async function openDetail(id){
   try{
     const {question,answers}=await api("/api/questions/"+id);
     $("detailSubject").textContent=question.subject;
-    if(question.image_path){$("detailImg").src=question.image_path;$("detailImg").classList.remove("hidden");}
-    else $("detailImg").classList.add("hidden");
+    if(question.image_path){
+      $("detailImg").src=question.image_path;$("detailImg").classList.remove("hidden");
+      $("detailImgDl").classList.remove("hidden");
+      $("detailImgDl").onclick=()=>downloadImage(question.image_path,`질문_${question.subject}_${id}`);
+    }else{ $("detailImg").classList.add("hidden"); $("detailImgDl").classList.add("hidden"); }
     $("detailBody").textContent=question.body||"(내용 없음)";
     $("detailMeta").textContent=`${question.student_id} · ${timeAgo(question.created_at)}`;
     $("detailDelWrap").innerHTML=(question.student_id===me.studentId||isStaff())
@@ -1660,13 +1712,32 @@ async function openDetail(id){
     $("detailModal").classList.remove("hidden");
   }catch(e){toast(e.message);}
 }
+// 이미지 다운로드 (다른 도메인이라 blob으로 받아 저장)
+async function downloadImage(url, filename){
+  try{
+    toast("사진을 저장하는 중...");
+    const res=await fetch(url);
+    const blob=await res.blob();
+    const ext=(blob.type.split("/")[1]||"jpg").replace("jpeg","jpg");
+    const a=document.createElement("a");
+    const objUrl=URL.createObjectURL(blob);
+    a.href=objUrl; a.download=(filename||"photo")+"."+ext;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(objUrl),1000);
+  }catch(e){
+    // 실패 시 새 탭으로 열어서 길게 눌러 저장하도록 안내
+    window.open(url,"_blank");
+    toast("이미지를 새 탭에서 열었어요. 길게 눌러 저장하세요.");
+  }
+}
 function renderAnswers(answers){
   const wrap=$("answerList");wrap.innerHTML="";
   if(!answers.length){wrap.innerHTML=`<div style="color:var(--ink-48);font-size:14px;padding:6px 0 12px">아직 답변이 없어요. 첫 답변을 달아주세요.</div>`;return;}
   answers.forEach(a=>{const d=document.createElement("div");d.className="ans";
     const canDel=(a.student_id===me.studentId||isStaff());
     const delBtn=canDel?`<button class="ans-del" onclick="deleteAnswer(${a.id})" title="삭제">×</button>`:"";
-    const imgHtml=a.image_path?`<img class="ans-img" src="${a.image_path}" loading="lazy"/>`:"";
+    const imgHtml=a.image_path?`<img class="ans-img" src="${a.image_path}" loading="lazy"/><button class="img-dl-btn small" onclick="downloadImage('${a.image_path}','답변_${a.id}')">⬇ 사진 저장</button>`:"";
     const txtHtml=a.body?`<div class="txt">${esc(a.body)}</div>`:"";
     d.innerHTML=`<div class="ans-top"><div class="who">${esc(a.student_id)} · ${timeAgo(a.created_at)}</div>${delBtn}</div>${txtHtml}${imgHtml}`;
     wrap.appendChild(d);});

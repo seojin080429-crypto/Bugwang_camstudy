@@ -717,7 +717,13 @@
     <!-- 패치노트 -->
     <div id="guide-patch" class="guide-panel hidden">
       <div class="patch-item">
-        <div class="patch-ver">v2.3 <span class="patch-tag new">최신</span></div>
+        <div class="patch-ver">v2.4 <span class="patch-tag new">최신</span></div>
+        <ul>
+          <li><b>출석 정확도 개선</b> — 캠스터디를 나가거나 새로고침하면 출석도 함께 종료돼요. 출석 시간이 더 정확하게 기록돼요.</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v2.3</div>
         <ul>
           <li><b>카메라 기본 꺼짐</b> — 입장 시 카메라가 꺼진 채로 시작해요. "카메라 켜기"로 켤 수 있어요.</li>
           <li><b>카메라 끄기 버튼</b> 추가 — 컨트롤에서 바로 카메라를 켜고 끌 수 있어요.</li>
@@ -920,7 +926,7 @@ function enterApp(){
   $("navWho").textContent=me.nickname+roleLabel;
   $("tab-admin").classList.toggle("hidden", !isStaff());
   $("tb-admin").classList.toggle("hidden", !isStaff());
-  connectSocket();loadQuestions();restoreAttend();
+  connectSocket();loadQuestions();cleanupStaleAttend();
 }
 // 세션 저장/복원 (새로고침해도 로그인 유지)
 function saveSession(){
@@ -951,7 +957,7 @@ window.addEventListener("load",()=>{restoreSession();});
 
 // ===== password =====
 // ===== 안내(사용법/패치노트) =====
-const APP_VERSION="v2.3";
+const APP_VERSION="v2.4";
 function openGuide(){
   $("guideVersion").textContent=APP_VERSION;
   showGuide("usage");
@@ -1144,17 +1150,12 @@ function stopAttendTick(){
   if(attendBeat){clearInterval(attendBeat);attendBeat=null;}
 }
 // 접속 시 출석 상태 복원 (새로고침/재접속 대비)
-async function restoreAttend(){
+// 접속 시 끊긴(active로 남은) 출석 세션이 있으면 종료 처리
+//  새로고침/창 닫기로 캠스터디가 끊겼는데 서버에 출석이 남아있는 경우 정리
+async function cleanupStaleAttend(){
   try{
     const r=await api("/api/attend/status");
-    if(r.active){
-      attending=true;
-      attendStart=new Date(r.startedAt).getTime();
-      $("btnAttend").textContent="출석 종료";$("btnAttend").classList.add("on");
-      $("attendPill").classList.remove("hidden");
-      $("btnAttend").disabled=false;
-      startAttendTick();
-    }
+    if(r.active){ await api("/api/attend/stop",{method:"POST"}); }
   }catch(e){}
 }
 
@@ -1382,10 +1383,9 @@ function startJitsi(cfg){
     userInfo:{ displayName: me.nickname },
   };
   jitsiApi=new JitsiMeetExternalAPI(domain, options);
-  // hangup(나가기) 버튼을 직접 눌렀을 때만 종료
+  // 나가기(hangup) 버튼 또는 연결 종료 시 캠스터디+출석 정리
   jitsiApi.addEventListener("readyToClose", ()=>{ leaveStudy(); });
-  // 주의: videoConferenceLeft로는 자동 종료하지 않음.
-  //  백그라운드 전환 시 일시적으로 발생할 수 있어, 잠깐 자리비움에도 캠스터디가 꺼지는 문제 방지.
+  jitsiApi.addEventListener("videoConferenceLeft", ()=>{ if(inStudy) leaveStudy(); });
   // 타일뷰 강제 함수 (여러 번/딜레이 두고 호출해서 확실히 적용)
   function forceTileView(){
     try{ jitsiApi.executeCommand("setTileView", true); }catch(e){}
@@ -1494,14 +1494,16 @@ async function releaseWakeLock(){
 }
 // 화면이 잠깐 꺼졌다 켜지면 Wake Lock이 자동 해제되므로, 복귀 시 다시 요청
 document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState==="visible"){
-    if(inStudy && !wakeLock) requestWakeLock();
-    // 백그라운드 동안 타이머가 느려졌을 수 있어 출석 시간 재동기화
-    if(attending){
-      api("/api/attend/status").then(r=>{
-        if(r.active){ attendStart=new Date(r.startedAt).getTime(); }
-      }).catch(()=>{});
-    }
+  if(document.visibilityState==="visible" && inStudy && !wakeLock){
+    requestWakeLock();
+  }
+});
+// 새로고침/창 닫기 시 출석 세션 종료 (keepalive로 페이지 떠나도 전송 시도)
+window.addEventListener("pagehide",()=>{
+  if(attending && token){
+    try{
+      fetch("/api/attend/stop",{method:"POST",headers:{Authorization:"Bearer "+token},keepalive:true});
+    }catch(e){}
   }
 });
 

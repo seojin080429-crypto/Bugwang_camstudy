@@ -32,6 +32,37 @@
     --font-display:"SF Pro Display","SF Pro Text",system-ui,-apple-system,BlinkMacSystemFont,"Inter","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
     --font-text:"SF Pro Text",system-ui,-apple-system,BlinkMacSystemFont,"Inter","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   }
+  /* 다크 모드 */
+  body.dark{
+    --primary:#3b9bff;
+    --primary-focus:#4aa3ff;
+    --canvas:#1c1c1e;
+    --parchment:#2c2c2e;
+    --pearl:#242426;
+    --ink:#f5f5f7;
+    --ink-80:#d0d0d2;
+    --ink-48:#98989d;
+    --hairline:#3a3a3c;
+    --divider-soft:#2c2c2e;
+    --tile-dark:#000000;
+    --shadow-product:0 5px 30px 3px rgba(0,0,0,.4);
+  }
+  body.dark .login-card{background:var(--parchment)}
+  body.dark .gnav{background:var(--canvas);border-bottom-color:var(--hairline)}
+  body.dark #screen-login{background:#000}
+  /* 다크모드에서 어두운 버튼들은 밝은 회색으로 */
+  body.dark .btn-util{background:#48484a;color:#fff}
+  body.dark .btn-util.quiet{background:transparent;color:var(--ink)}
+  body.dark .ctrl.leave{background:#48484a}
+  body.dark .btn-cancel{background:var(--parchment);color:var(--ink)}
+  body.dark .toast{background:#48484a}
+  body.dark .role-badge.owner{background:#48484a}
+  body.dark .my-rank{background:var(--primary)}
+  body.dark .q-card,body.dark .chat,body.dark .admin-table,body.dark .rank-row,body.dark .ans{background:var(--pearl)}
+  body.dark .modal-card{background:var(--canvas)}
+  body.dark .tabbar{background:rgba(28,28,30,.92);border-top-color:var(--hairline)}
+  body.dark .cam-notice{background:#3a2f1a;color:#e0b350;border-color:#5a4a20}
+  body.dark .q-card .subj,body.dark .ans .who{background:var(--parchment)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0}
   body{font-family:var(--font-text);background:var(--canvas);color:var(--ink);
@@ -52,6 +83,7 @@
     font-size:14px;letter-spacing:-0.224px;transition:transform .12s}
   .btn-util:active{transform:scale(.95)}
   .btn-util.quiet{background:transparent;color:var(--ink)}
+  .theme-toggle{font-size:17px;padding:7px 10px;line-height:1}
   .text-link{color:var(--primary);cursor:pointer}
 
   /* ===== nav ===== */
@@ -244,6 +276,7 @@
   .aact:active{transform:scale(.94)}
   .aact.danger{color:#d70015}
   .aact.primary{background:var(--primary);color:#fff}
+  .aact.cam-on{background:#e6f7ed;color:#1d8a4e}
   .aact:disabled{opacity:.3;cursor:default}
   @media(max-width:620px){
     .arow{grid-template-columns:1fr;gap:8px}
@@ -519,6 +552,7 @@
       <button id="tab-admin" class="hidden" onclick="showTab('admin')">관리자</button>
     </div>
     <span class="who" id="navWho"></span>
+    <button class="btn-util quiet theme-toggle" onclick="toggleTheme()" title="다크/라이트 모드" id="themeToggle">🌙</button>
     <button class="btn-util quiet" onclick="openGuide()" title="사용법·패치노트">안내</button>
     <button class="btn-util quiet" onclick="openPwModal()">비밀번호</button>
     <button class="btn-util" onclick="logout()">로그아웃</button>
@@ -697,6 +731,7 @@
       <div class="guide-sec">
         <h3>📷 캠스터디 참여</h3>
         <p>캠스터디 탭에서 <b>"참여하기"</b>를 누르면 영상에 입장해요. 마이크는 꺼진 채로 시작하고, 카메라 없이도 참여할 수 있어요. 채팅으로 대화하면 돼요.</p>
+        <p style="color:var(--ink-48);font-size:13px">※ 캠스터디는 <b>신청해서 허용된 학생만</b> 이용할 수 있어요. 질문방·랭킹은 누구나 이용 가능해요.</p>
       </div>
       <div class="guide-sec">
         <h3>📱 기기 등록 (중요!)</h3>
@@ -731,7 +766,20 @@
     <!-- 패치노트 -->
     <div id="guide-patch" class="guide-panel hidden">
       <div class="patch-item">
-        <div class="patch-ver">v2.5 <span class="patch-tag new">최신</span></div>
+        <div class="patch-ver">v2.7 <span class="patch-tag new">최신</span></div>
+        <ul>
+          <li><b>다크 모드</b> 추가 🌙 — 상단의 달/해 버튼으로 어두운 화면과 밝은 화면을 전환할 수 있어요. 밤에 공부할 때 눈이 편해요.</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v2.6</div>
+        <ul>
+          <li><b>질문방은 누구나 이용</b> — 캠스터디 신청을 안 해도 질문방·랭킹은 모두 쓸 수 있어요.</li>
+          <li>캠스터디(영상)는 <b>허용된 계정만</b> 참여할 수 있어요. 이용하려면 선생님께 신청하세요.</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v2.5</div>
         <ul>
           <li><b>앱처럼 쓰기</b> — 홈 화면에 추가하면 주소창 없이 앱처럼 전체화면으로 실행돼요. (사용법 참고)</li>
           <li>앱 아이콘 추가 📲</li>
@@ -978,7 +1026,29 @@ window.addEventListener("load",()=>{restoreSession();});
 
 // ===== password =====
 // ===== 안내(사용법/패치노트) =====
-const APP_VERSION="v2.5";
+const APP_VERSION="v2.7";
+// ===== 다크/라이트 모드 =====
+function applyTheme(dark){
+  document.body.classList.toggle("dark", dark);
+  const btn=$("themeToggle");
+  if(btn) btn.textContent = dark ? "☀️" : "🌙";
+  // 상태바 색상도 맞춤
+  const meta=document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute("content", dark ? "#1c1c1e" : "#ffffff");
+}
+function toggleTheme(){
+  const dark=!document.body.classList.contains("dark");
+  applyTheme(dark);
+  try{ localStorage.setItem("camstudy_theme", dark?"dark":"light"); }catch(e){}
+}
+function restoreTheme(){
+  let dark=false;
+  try{ dark=localStorage.getItem("camstudy_theme")==="dark"; }catch(e){}
+  applyTheme(dark);
+}
+// 페이지 로드 시 테마 복원
+restoreTheme();
+
 function openGuide(){
   $("guideVersion").textContent=APP_VERSION;
   showGuide("usage");
@@ -1852,6 +1922,12 @@ function renderAdminUsers(){
     if(!isOwnerRow&&(!isAdminRow||isOwner())&&u.student_id!==me.studentId){
       acts+=`<button class="aact danger" onclick="kickUser('${u.student_id}')">추방</button>`;
     }
+    // 캠스터디 허용 토글 (운영자/관리자는 항상 허용이라 토글 없음)
+    if(!isOwnerRow && !isAdminRow){
+      acts+=u.cam_allowed
+        ?`<button class="aact cam-on" onclick="toggleCamAllowed('${u.student_id}',false)">📷 허용됨</button>`
+        :`<button class="aact" onclick="toggleCamAllowed('${u.student_id}',true)">📷 차단됨</button>`;
+    }
     // 기기 수 배지 (등록 기기가 있으면 표시)
     const devBadge=(u.device_count||0)>0
       ?`<span class="dev-badge" title="등록 기기 수">📱${u.device_count}</span>`:"";
@@ -1884,6 +1960,13 @@ async function resetDevices(id){
   if(!confirm(`${id} 님의 등록 기기를 모두 초기화할까요?\n학생이 새 기기로 다시 등록할 수 있게 됩니다.`))return;
   try{await api("/api/admin/users/"+id+"/devices",{method:"DELETE"});toast(`${id} 님의 기기를 초기화했어요.`);loadAdminUsers();}
   catch(e){toast(e.message);}
+}
+async function toggleCamAllowed(id,allowed){
+  try{
+    await api("/api/admin/users/"+id+"/cam-allowed",{method:"POST",body:JSON.stringify({allowed})});
+    toast(allowed?`${id} 님의 캠스터디를 허용했어요.`:`${id} 님의 캠스터디를 차단했어요.`);
+    loadAdminUsers();
+  }catch(e){toast(e.message);}
 }
 function openAddUserModal(){$("addUserModal").classList.remove("hidden");$("addUserMsg").textContent="";}
 function closeAddUserModal(){$("addUserModal").classList.add("hidden");$("newUserId").value="";$("newUserName").value="";}

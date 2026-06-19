@@ -330,8 +330,8 @@ app.post("/api/study/join", auth, async (req, res) => {
       // 이미 등록된 기기 → last_seen 갱신
       await supabase.from("devices").update({ last_seen: new Date().toISOString() }).eq("id", existing.id);
     } else {
-      // 새 기기 → 한도 체크
-      if (list.length >= MAX_DEVICES_PER_USER) {
+      // 새 기기 → 한도 체크 (운영자는 제한 없음)
+      if (!isOwner(studentId) && list.length >= MAX_DEVICES_PER_USER) {
         return res.status(403).json({
           error: `등록된 기기가 가득 찼어요 (최대 ${MAX_DEVICES_PER_USER}대). 관리자에게 기기 초기화를 요청하세요.`,
           code: "DEVICE_LIMIT",

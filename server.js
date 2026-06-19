@@ -346,6 +346,17 @@ app.post("/api/study/join", auth, async (req, res) => {
       });
     }
 
+    // MAU 누적 기록: 이번 달(KST)에 이 기기가 캠스터디에 입장했음을 남김.
+    //  기기 초기화를 해도 이 기록은 유지되어 8x8 실제 MAU와 거의 일치.
+    //  (year_month + device_id 유니크라, 같은 달 같은 기기는 자동으로 1회만)
+    try {
+      const ym = kstYearMonth();
+      await supabase.from("mau_log").upsert(
+        { year_month: ym, device_id: deviceId, student_id: studentId, first_seen: new Date().toISOString() },
+        { onConflict: "year_month,device_id", ignoreDuplicates: true }
+      );
+    } catch (e) { console.error("mau_log 기록 실패:", e.message); }
+
     const videoToken = makeJaasToken({
       studentId,
       nickname: req.user.nickname,
@@ -377,6 +388,10 @@ app.get("/api/study/my-devices", auth, async (req, res) => {
 
 // 한국 시간(KST) 기준 날짜/주/월 경계 계산
 function kstNow() { return new Date(Date.now() + 9 * 3600 * 1000); }
+function kstYearMonth() {
+  const k = kstNow();
+  return `${k.getUTCFullYear()}-${String(k.getUTCMonth() + 1).padStart(2, "0")}`;
+}
 function kstWeekStart() {
   // 이번 주 월요일 0시(KST)의 UTC 시각
   const k = kstNow();
@@ -499,10 +514,21 @@ app.get("/api/admin/users", auth, requireStaff, async (req, res) => {
 // 전체 기기 등록 현황 (관리자) — MAU 한도 관리용
 app.get("/api/admin/device-stats", auth, requireStaff, async (req, res) => {
   try {
+    const ym = kstYearMonth();
+    // 이번 달 MAU: 이번 달에 캠스터디 입장한 고유 기기 수 (초기화해도 유지 → 8x8과 거의 일치)
+    const { count: mauCount } = await supabase
+      .from("mau_log").select("*", { count: "exact", head: true }).eq("year_month", ym);
+    // 참고: 현재 등록된 기기 수 (기기 초기화하면 줄어듦)
     const { data: devs } = await supabase.from("devices").select("student_id");
-    const total = (devs || []).length;
+    const registered = (devs || []).length;
     const uniqueUsers = new Set((devs || []).map(d => d.student_id)).size;
-    res.json({ total, uniqueUsers, limit: JAAS_MAU_LIMIT });
+    res.json({
+      total: mauCount || 0,        // MAU 기준 (한도 대비 표시용)
+      registered,                  // 현재 등록 기기 수 (참고)
+      uniqueUsers,
+      limit: JAAS_MAU_LIMIT,
+      yearMonth: ym,
+    });
   } catch (e) { console.error(e); res.status(500).json({ error: "기기 현황을 불러오지 못했습니다." }); }
 });
 

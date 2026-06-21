@@ -159,20 +159,42 @@ app.post("/api/change-password", auth, async (req, res) => {
 // --- 질문 목록 ---
 app.get("/api/questions", auth, async (req, res) => {
   try {
-    const { data: questions, error } = await supabase.from("questions").select("*").order("id", { ascending: false }).limit(100);
+    const category = req.query.category || "question";
+    const { data: questions, error } = await supabase.from("questions")
+      .select("*").eq("category", category).order("id", { ascending: false }).limit(100);
     if (error) throw error;
     const { data: answers } = await supabase.from("answers").select("question_id");
     const counts = {};
     (answers || []).forEach(a => { counts[a.question_id] = (counts[a.question_id] || 0) + 1; });
     res.json((questions || []).map(q => ({ ...q, answer_count: counts[q.id] || 0 })));
-  } catch (e) { console.error(e); res.status(500).json({ error: "질문을 불러오지 못했습니다." }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: "글을 불러오지 못했습니다." }); }
 });
 
-// --- 질문 작성 ---
+// --- 글 작성 ---
+const VALID_CATEGORIES = ["notice", "question", "study", "playlist", "free"];
 app.post("/api/questions", auth, upload.single("image"), async (req, res) => {
   try {
     const { subject, body } = req.body || {};
-    if (!subject) return res.status(400).json({ error: "과목을 입력하세요." });
+    const category = req.body.category || "question";
+    if (!VALID_CATEGORIES.includes(category)) return res.status(400).json({ error: "잘못된 게시판입니다." });
+    if (!subject) return res.status(400).json({ error: "제목을 입력하세요." });
+    // 공지사항은 관리자/운영자만 작성 가능
+    if (category === "notice" && !isStaffRole(req.user.role)) {
+      return res.status(403).json({ error: "공지사항은 관리자만 작성할 수 있어요." });
+    }
+    // 플리 공유: 곡 목록(playlist_data) 파싱
+    let playlistData = null;
+    if (category === "playlist") {
+      try {
+        const pl = JSON.parse(req.body.playlist || "null");
+        if (!pl || !Array.isArray(pl.tracks) || pl.tracks.length === 0) {
+          return res.status(400).json({ error: "공유할 플레이리스트를 선택하세요." });
+        }
+        // 안전하게 필요한 필드만 저장 (최대 50곡)
+        playlistData = { name: String(pl.name || "공유 플리").slice(0, 30),
+          tracks: pl.tracks.slice(0, 50).map(t => ({ id: String(t.id).slice(0, 20), name: String(t.name || "곡").slice(0, 40), emoji: "🎵" })) };
+      } catch (e) { return res.status(400).json({ error: "플레이리스트 정보가 올바르지 않습니다." }); }
+    }
     let imagePath = null;
     if (req.file) {
       const ext = (req.file.originalname.split(".").pop() || "jpg").toLowerCase();
@@ -182,10 +204,13 @@ app.post("/api/questions", auth, upload.single("image"), async (req, res) => {
       const { data: pub } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(fileName);
       imagePath = pub.publicUrl;
     }
-    const { data, error } = await supabase.from("questions").insert({ student_id: req.user.studentId, subject, body: body || "", image_path: imagePath, created_at: new Date().toISOString() }).select().single();
+    const { data, error } = await supabase.from("questions").insert({
+      student_id: req.user.studentId, subject, body: body || "", image_path: imagePath,
+      category, playlist_data: playlistData, created_at: new Date().toISOString()
+    }).select().single();
     if (error) throw error;
     res.json({ id: data.id });
-  } catch (e) { console.error(e); res.status(500).json({ error: "질문 등록에 실패했습니다." }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: "글 등록에 실패했습니다." }); }
 });
 
 // --- 질문 상세 + 답변 ---

@@ -333,6 +333,49 @@
   .modal-card h2{font-family:var(--font-display);font-size:24px;font-weight:600;letter-spacing:-0.4px;margin:0 0 18px}
   /* 안내(사용법/패치노트) 모달 */
   .guide-tabs{display:flex;background:var(--parchment);border-radius:9999px;padding:3px;margin-bottom:18px}
+  /* 플로팅 음악 버튼 + 패널 */
+  .music-fab{position:fixed;right:18px;bottom:84px;z-index:90;width:54px;height:54px;border-radius:50%;
+    background:var(--ink);color:#fff;font-size:22px;box-shadow:0 6px 20px rgba(0,0,0,.28);
+    display:flex;align-items:center;justify-content:center;transition:transform .15s}
+  .music-fab:active{transform:scale(.92)}
+  .music-fab.playing{animation:musicPulse 2s ease-in-out infinite}
+  @keyframes musicPulse{0%,100%{box-shadow:0 6px 20px rgba(0,0,0,.28)}50%{box-shadow:0 6px 28px rgba(0,102,204,.55)}}
+  .music-panel{position:fixed;right:18px;bottom:148px;z-index:91;width:320px;max-width:calc(100vw - 36px);
+    background:var(--canvas);border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.25);
+    padding:18px;border:1px solid var(--hairline)}
+  .mp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .mp-head h3{font-family:var(--font-display);font-size:17px;font-weight:600;margin:0;letter-spacing:-0.3px}
+  .mp-close{font-size:16px;color:var(--ink-48);width:28px;height:28px;border-radius:8px}
+  .mp-now{font-size:13.5px;color:var(--ink-80);background:var(--parchment);border-radius:10px;
+    padding:10px 12px;margin-bottom:12px;text-align:center;letter-spacing:-0.2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mp-controls{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+  .mp-btn{width:40px;height:40px;border-radius:50%;background:var(--parchment);font-size:15px;
+    display:flex;align-items:center;justify-content:center;transition:.12s}
+  .mp-btn:active{transform:scale(.9)}
+  .mp-btn.play{background:var(--primary);color:#fff;width:46px;height:46px;font-size:17px}
+  .mp-vol{display:flex;align-items:center;gap:6px;flex:1;margin-left:4px}
+  .mp-vol input[type=range]{flex:1;accent-color:var(--primary)}
+  .mp-tabs{display:flex;background:var(--parchment);border-radius:9999px;padding:3px;margin-bottom:12px}
+  .mp-tab{flex:1;font-size:13px;color:var(--ink-80);border-radius:9999px;padding:7px 0;transition:.15s}
+  .mp-tab.active{background:var(--canvas);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .mp-list{max-height:200px;overflow-y:auto}
+  .mp-track{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:.12s}
+  .mp-track:hover{background:var(--parchment)}
+  .mp-track.active{background:#e8f1fd}
+  .mp-track .tk-emoji{font-size:18px}
+  .mp-track .tk-name{flex:1;font-size:14px;letter-spacing:-0.2px}
+  .mp-track .tk-del{font-size:13px;color:#d70015;opacity:.6}
+  .mp-add{display:flex;gap:6px;margin-bottom:10px}
+  .mp-add input{flex:1;padding:9px 12px;border:1px solid var(--hairline);border-radius:10px;font-size:13px;background:var(--canvas)}
+  body.dark .music-panel{background:var(--canvas)}
+  body.dark .mp-add input{background:var(--pearl);color:var(--ink)}
+  body.dark .mp-track.active{background:#1e3a5f}
+  body.dark .music-fab{background:#48484a}
+  @media(max-width:760px){
+    .music-fab{bottom:78px;right:14px}
+    .music-panel{bottom:142px;right:14px}
+  }
   /* 환영 튜토리얼 */
   .welcome-card{max-width:420px;text-align:center}
   .wc-slide{padding:14px 6px 8px;min-height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center}
@@ -782,6 +825,38 @@
   <button onclick="closePrivacy()">화면 다시 보기</button>
 </div>
 
+<!-- 플로팅 음악 버튼 + 패널 -->
+<button id="musicFab" class="music-fab hidden" onclick="toggleMusicPanel()" title="집중 음악">🎵</button>
+<div id="musicPanel" class="music-panel hidden">
+  <div class="mp-head">
+    <h3>🎧 집중 음악</h3>
+    <button class="mp-close" onclick="toggleMusicPanel()">✕</button>
+  </div>
+  <div class="mp-now" id="mpNow">재생할 음악을 선택하세요</div>
+  <div class="mp-controls">
+    <button class="mp-btn" onclick="musicPrev()" title="이전">⏮</button>
+    <button class="mp-btn play" id="mpPlayBtn" onclick="musicTogglePlay()" title="재생/정지">▶</button>
+    <button class="mp-btn" onclick="musicNext()" title="다음">⏭</button>
+    <div class="mp-vol">
+      <span>🔊</span>
+      <input type="range" id="mpVol" min="0" max="100" value="60" oninput="musicSetVolume(this.value)"/>
+    </div>
+  </div>
+  <div class="mp-tabs">
+    <button class="mp-tab active" id="mpt-bgm" onclick="showMusicTab('bgm')">기본 BGM</button>
+    <button class="mp-tab" id="mpt-my" onclick="showMusicTab('my')">내 음악</button>
+  </div>
+  <div id="mp-bgm" class="mp-list"></div>
+  <div id="mp-my" class="mp-list hidden">
+    <div class="mp-add">
+      <input type="text" id="myYtUrl" placeholder="유튜브 링크 붙여넣기"/>
+      <button class="btn-pill small" onclick="addMyTrack()">추가</button>
+    </div>
+    <div id="myTrackList"></div>
+  </div>
+  <div id="ytPlayerHost" style="position:absolute;width:0;height:0;overflow:hidden;left:-9999px"></div>
+</div>
+
 <!-- 환영 튜토리얼 modal (첫 로그인 시 1회) -->
 <div id="welcomeModal" class="modal hidden">
   <div class="modal-card welcome-card">
@@ -850,7 +925,13 @@
     <!-- 패치노트 -->
     <div id="guide-patch" class="guide-panel hidden">
       <div class="patch-item">
-        <div class="patch-ver">v2.8 <span class="patch-tag new">최신</span></div>
+        <div class="patch-ver">v2.9 <span class="patch-tag new">최신</span></div>
+        <ul>
+          <li><b>집중 음악</b> 추가 🎧 — 오른쪽 아래 음악 버튼으로 Lofi·빗소리·카페·피아노 같은 집중 BGM을 들을 수 있어요. 유튜브 링크로 내 음악도 추가 가능해요. (나만 들려요)</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v2.8</div>
         <ul>
           <li><b>환영 안내</b> 추가 👋 — 처음 들어온 분에게 앱 사용법을 간단히 소개해드려요.</li>
         </ul>
@@ -1087,6 +1168,7 @@ function enterApp(){
   $("tab-admin").classList.toggle("hidden", !isStaff());
   $("tb-admin").classList.toggle("hidden", !isStaff());
   connectSocket();loadQuestions();cleanupStaleAttend();
+  $("musicFab").classList.remove("hidden");
 }
 // 세션 저장/복원 (새로고침해도 로그인 유지)
 function saveSession(){
@@ -1108,6 +1190,9 @@ function restoreSession(){
 }
 function logout(){
   if(inStudy)leaveStudy();if(socket)socket.disconnect();
+  try{ if(ytPlayer){ytPlayer.pauseVideo();musicPlaying=false;} }catch(e){}
+  $("musicFab").classList.add("hidden");$("musicPanel").classList.add("hidden");
+  $("musicFab").classList.remove("playing");
   token=null;me=null;clearSession();
   $("screen-main").classList.add("hidden");$("screen-login").classList.remove("hidden");$("loginPw").value="";
 }
@@ -1117,7 +1202,7 @@ window.addEventListener("load",()=>{restoreSession();});
 
 // ===== password =====
 // ===== 안내(사용법/패치노트) =====
-const APP_VERSION="v2.8";
+const APP_VERSION="v2.9";
 // ===== 다크/라이트 모드 =====
 function applyTheme(dark){
   document.body.classList.toggle("dark", dark);
@@ -1139,6 +1224,121 @@ function restoreTheme(){
 }
 // 페이지 로드 시 테마 복원
 restoreTheme();
+
+// ===== 집중 음악 플레이어 (유튜브 IFrame, 각자 듣기) =====
+// 기본 BGM: 유튜브의 잘 알려진 24/7 집중음악 스트림/롱플레이
+const BGM_TRACKS=[
+  {id:"jfKfPfyJRdk", emoji:"🎧", name:"Lofi 집중 라디오"},
+  {id:"5yx6BWlEVcY", emoji:"🌧️", name:"빗소리·자연음"},
+  {id:"DWcJFNfaw9c", emoji:"☕", name:"카페 백색소음"},
+  {id:"4oStw0r33so", emoji:"🎹", name:"피아노·클래식"},
+];
+let ytPlayer=null, ytReady=false, musicQueue=[], musicIdx=0, musicPlaying=false, musicTab="bgm", _ytApiLoading=false;
+
+function loadYouTubeAPI(cb){
+  if(window.YT && window.YT.Player){ cb&&cb(); return; }
+  if(_ytApiLoading){ const t=setInterval(()=>{ if(window.YT&&window.YT.Player){clearInterval(t);cb&&cb();} },200); return; }
+  _ytApiLoading=true;
+  window.onYouTubeIframeAPIReady=()=>{ ytReady=true; cb&&cb(); };
+  const tag=document.createElement("script");
+  tag.src="https://www.youtube.com/iframe_api";
+  document.head.appendChild(tag);
+}
+function ensurePlayer(cb){
+  loadYouTubeAPI(()=>{
+    if(ytPlayer){ cb&&cb(); return; }
+    ytPlayer=new YT.Player("ytPlayerHost",{
+      height:"1",width:"1",
+      playerVars:{autoplay:0,controls:0,disablekb:1,playsinline:1},
+      events:{
+        onReady:()=>{ try{ytPlayer.setVolume(parseInt($("mpVol").value||"60",10));}catch(e){} cb&&cb(); },
+        onStateChange:(e)=>{
+          if(e.data===YT.PlayerState.PLAYING){ musicPlaying=true; updateMusicUI(); }
+          else if(e.data===YT.PlayerState.PAUSED){ musicPlaying=false; updateMusicUI(); }
+          else if(e.data===YT.PlayerState.ENDED){ musicNext(); }
+        },
+      },
+    });
+  });
+}
+function toggleMusicPanel(){
+  const p=$("musicPanel");
+  const opening=p.classList.contains("hidden");
+  p.classList.toggle("hidden");
+  if(opening){ renderMusicList(); }
+}
+function showMusicTab(t){
+  musicTab=t;
+  $("mpt-bgm").classList.toggle("active",t==="bgm");
+  $("mpt-my").classList.toggle("active",t==="my");
+  $("mp-bgm").classList.toggle("hidden",t!=="bgm");
+  $("mp-my").classList.toggle("hidden",t!=="my");
+  if(t==="my") renderMyTracks();
+}
+function renderMusicList(){
+  $("mp-bgm").innerHTML=BGM_TRACKS.map((t,i)=>trackRow(t,"bgm",i)).join("");
+  renderMyTracks();
+}
+function trackRow(t,kind,i){
+  const active=(musicQueue===(kind==="bgm"?BGM_TRACKS:myTracks)&&musicIdx===i&&musicPlaying)?"active":"";
+  const del=kind==="my"?`<span class="tk-del" onclick="event.stopPropagation();delMyTrack(${i})">✕</span>`:"";
+  return `<div class="mp-track ${active}" onclick="playFrom('${kind}',${i})">
+    <span class="tk-emoji">${t.emoji||"🎵"}</span>
+    <span class="tk-name">${esc(t.name)}</span>${del}</div>`;
+}
+// 내 음악 (localStorage)
+let myTracks=[];
+function loadMyTracks(){ try{ myTracks=JSON.parse(localStorage.getItem("camstudy_mytracks")||"[]"); }catch(e){ myTracks=[]; } }
+function saveMyTracks(){ try{ localStorage.setItem("camstudy_mytracks",JSON.stringify(myTracks)); }catch(e){} }
+function renderMyTracks(){
+  const host=$("myTrackList");
+  if(!myTracks.length){ host.innerHTML='<div style="color:var(--ink-48);font-size:13px;text-align:center;padding:16px 0">유튜브 링크를 추가해보세요</div>'; return; }
+  host.innerHTML=myTracks.map((t,i)=>trackRow(t,"my",i)).join("");
+}
+function extractYouTubeId(url){
+  if(!url) return null;
+  const m=url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  if(m) return m[1];
+  if(/^[A-Za-z0-9_-]{11}$/.test(url.trim())) return url.trim();
+  return null;
+}
+function addMyTrack(){
+  const url=$("myYtUrl").value.trim();
+  const id=extractYouTubeId(url);
+  if(!id){ toast("유효한 유튜브 링크가 아니에요."); return; }
+  myTracks.push({id, emoji:"🎵", name:"내 음악 "+(myTracks.length+1)});
+  saveMyTracks(); $("myYtUrl").value=""; renderMyTracks();
+  toast("추가했어요!");
+}
+function delMyTrack(i){
+  myTracks.splice(i,1); saveMyTracks(); renderMyTracks();
+}
+function playFrom(kind,i){
+  musicQueue=(kind==="bgm")?BGM_TRACKS:myTracks;
+  musicIdx=i;
+  ensurePlayer(()=>{
+    const t=musicQueue[musicIdx]; if(!t) return;
+    ytPlayer.loadVideoById(t.id);
+    musicPlaying=true; updateMusicUI();
+  });
+}
+function musicTogglePlay(){
+  if(!ytPlayer){ // 아직 아무것도 안 골랐으면 첫 BGM 재생
+    playFrom("bgm",0); return;
+  }
+  if(musicPlaying){ ytPlayer.pauseVideo(); } else { ytPlayer.playVideo(); }
+}
+function musicNext(){ if(!musicQueue.length)return; playFrom(musicQueue===myTracks?"my":"bgm",(musicIdx+1)%musicQueue.length); }
+function musicPrev(){ if(!musicQueue.length)return; playFrom(musicQueue===myTracks?"my":"bgm",(musicIdx-1+musicQueue.length)%musicQueue.length); }
+function musicSetVolume(v){ if(ytPlayer){ try{ytPlayer.setVolume(parseInt(v,10));}catch(e){} } }
+function updateMusicUI(){
+  $("mpPlayBtn").textContent=musicPlaying?"⏸":"▶";
+  $("musicFab").classList.toggle("playing",musicPlaying);
+  const t=musicQueue[musicIdx];
+  $("mpNow").textContent=t?`${t.emoji||"🎵"} ${t.name}`:"재생할 음악을 선택하세요";
+  renderMusicList();
+}
+loadMyTracks();
 
 // ===== 환영 튜토리얼 (첫 로그인 1회) =====
 const WELCOME_SLIDES=[

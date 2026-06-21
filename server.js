@@ -171,7 +171,7 @@ app.get("/api/questions", auth, async (req, res) => {
 });
 
 // --- 글 작성 ---
-const VALID_CATEGORIES = ["notice", "question", "study", "playlist", "free"];
+const VALID_CATEGORIES = ["notice", "question", "study", "playlist"];
 app.post("/api/questions", auth, upload.single("image"), async (req, res) => {
   try {
     const { subject, body } = req.body || {};

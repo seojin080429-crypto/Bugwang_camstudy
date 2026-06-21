@@ -25,6 +25,9 @@ const JAAS_PRIVATE_KEY = (process.env.JAAS_PRIVATE_KEY || "").replace(/\\n/g, "\
 const MAX_DEVICES_PER_USER = parseInt(process.env.MAX_DEVICES_PER_USER || "2", 10);
 // JaaS 무료 플랜 MAU(기기 기준) 한도 — 현황 표시용
 const JAAS_MAU_LIMIT = parseInt(process.env.JAAS_MAU_LIMIT || "25", 10);
+// 안전 차단선: 이번 달 MAU가 이 수에 도달하면 '새 기기'의 입장을 막음.
+//  8x8 무료 한도(25)를 절대 넘지 않도록 2개 여유를 둠 → 한도 초과 과금/차단 예방.
+const MAU_SAFE_LIMIT = 23;
 const JAAS_ROOM = "main-camstudy"; // 모두 같은 방 사용
 
 // ---- 권한 체계 ----
@@ -346,6 +349,27 @@ app.post("/api/study/join", auth, async (req, res) => {
       });
     }
 
+    // ── MAU 안전 차단 ──
+    // 8x8 무료 한도(25)를 넘지 않도록, 이번 달 MAU가 안전선(23)에 도달하면
+    //  '이번 달 처음 들어오는 새 기기'의 입장을 막는다.
+    //  (이미 이번 달 들어온 적 있는 기기는 MAU가 늘지 않으므로 통과 / 운영자는 예외)
+    {
+      const ym = kstYearMonth();
+      // 이 기기가 이번 달에 이미 기록돼 있는지 (있으면 새 MAU 아님 → 통과)
+      const { data: seen } = await supabase.from("mau_log")
+        .select("id").eq("year_month", ym).eq("device_id", deviceId).maybeSingle();
+      if (!seen && !isOwner(studentId)) {
+        const { count: mauCount } = await supabase.from("mau_log")
+          .select("*", { count: "exact", head: true }).eq("year_month", ym);
+        if ((mauCount || 0) >= MAU_SAFE_LIMIT) {
+          return res.status(403).json({
+            error: "이번 달 캠스터디 이용 가능 인원이 모두 찼어요. 다음 달 1일에 다시 열려요. (질문방·랭킹은 계속 이용 가능)",
+            code: "MAU_FULL",
+          });
+        }
+      }
+    }
+
     // MAU 누적 기록: 이번 달(KST)에 이 기기가 캠스터디에 입장했음을 남김.
     //  기기 초기화를 해도 이 기록은 유지되어 8x8 실제 MAU와 거의 일치.
     //  (year_month + device_id 유니크라, 같은 달 같은 기기는 자동으로 1회만)
@@ -527,6 +551,7 @@ app.get("/api/admin/device-stats", auth, requireStaff, async (req, res) => {
       registered,                  // 현재 등록 기기 수 (참고)
       uniqueUsers,
       limit: JAAS_MAU_LIMIT,
+      safeLimit: MAU_SAFE_LIMIT,   // 안전 차단선 (이 수 도달 시 새 기기 차단)
       yearMonth: ym,
     });
   } catch (e) { console.error(e); res.status(500).json({ error: "기기 현황을 불러오지 못했습니다." }); }

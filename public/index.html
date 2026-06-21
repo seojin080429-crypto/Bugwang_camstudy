@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="캠스터디" />
 <link rel="apple-touch-icon" href="/icon-180.png" />
 <script src="/socket.io/socket.io.js"></script>
-<script src="https://8x8.vc/vpaas-magic-cookie-2d4ea985808c4159987a9f058f900c4d/external_api.js"></script>
+<script src="https://8x8.vc/vpaas-magic-cookie-c65be80350e64dfc9001787a5ccf301b/external_api.js"></script>
 <style>
   /* ===== Apple-style white theme ===== */
   :root{
@@ -705,7 +705,7 @@
     </div>
     <div class="dev-stats" id="devStats">
       <div class="ds-main">
-        <div class="ds-label">이번 달 사용 기기 (MAU)</div>
+        <div class="ds-label">이번 달 캠스터디 사용 기기</div>
         <div class="ds-count"><b id="dsTotal">-</b> <span id="dsLimit">/ 25</span></div>
       </div>
       <div class="ds-bar"><div class="ds-fill" id="dsFill"></div></div>
@@ -2038,16 +2038,21 @@ async function loadAdminUsers(){
 async function loadDeviceStats(){
   try{
     const s=await api("/api/admin/device-stats");
+    const safe=s.safeLimit||s.limit;
     $("dsTotal").textContent=s.total;
-    $("dsLimit").textContent="/ "+s.limit;
-    const pct=Math.min(100,Math.round(s.total/s.limit*100));
+    $("dsLimit").textContent="/ "+safe;
+    const pct=Math.min(100,Math.round(s.total/safe*100));
     const fill=$("dsFill");
     fill.style.width=pct+"%";
     fill.classList.remove("warn","danger");
     if(pct>=90) fill.classList.add("danger");
     else if(pct>=70) fill.classList.add("warn");
     const reg=(s.registered!=null)?` · 현재 등록 ${s.registered}대`:"";
-    $("dsSub").textContent=`이번 달 캠스터디를 사용한 기기 수예요. 한도의 ${pct}% 사용 중${reg}`;
+    if(s.total>=safe){
+      $("dsSub").textContent=`이번 달 이용 가능 인원이 모두 찼어요. 새 기기는 다음 달 1일까지 입장이 제한돼요${reg}`;
+    }else{
+      $("dsSub").textContent=`이번 달 캠스터디 사용 기기 ${s.total}대 · 안전 한도 ${safe}대 (8x8 한도 ${s.limit} 보호)${reg}`;
+    }
   }catch(e){ $("dsSub").textContent="기기 현황을 불러오지 못했어요."; }
 }
 function renderAdminUsers(){

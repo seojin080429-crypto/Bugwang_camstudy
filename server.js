@@ -191,7 +191,8 @@ app.post("/api/questions", auth, upload.single("image"), async (req, res) => {
           return res.status(400).json({ error: "공유할 플레이리스트를 선택하세요." });
         }
         // 안전하게 필요한 필드만 저장 (최대 50곡)
-        playlistData = { name: String(pl.name || "공유 플리").slice(0, 30),
+        playlistData = { plId: pl.plId ? String(pl.plId).slice(0,40) : null,
+          name: String(pl.name || "공유 플리").slice(0, 30),
           tracks: pl.tracks.slice(0, 50).map(t => ({ id: String(t.id).slice(0, 20), name: String(t.name || "곡").slice(0, 40), emoji: "🎵" })) };
       } catch (e) { return res.status(400).json({ error: "플레이리스트 정보가 올바르지 않습니다." }); }
     }
@@ -248,6 +249,41 @@ app.post("/api/questions/:id/answers", auth, upload.single("image"), async (req,
 });
 
 // --- 질문 삭제 ---
+// --- 플리 공유 글 자동 동기화 ---
+// 내가 가진 플레이리스트(plId + 최신 곡목록)를 보내면,
+//  내가 올린 플리 공유 글 중 같은 plId인 글의 곡 목록을 자동 업데이트.
+app.post("/api/playlists/sync", auth, async (req, res) => {
+  try {
+    const myPlaylists = (req.body && req.body.playlists) || [];
+    if (!Array.isArray(myPlaylists)) return res.status(400).json({ error: "잘못된 요청입니다." });
+    // 내가 올린 플리 공유 글들
+    const { data: posts } = await supabase.from("questions")
+      .select("id, playlist_data").eq("student_id", req.user.studentId).eq("category", "playlist");
+    if (!posts || !posts.length) return res.json({ updated: 0 });
+    // plId → 최신 플리 매핑
+    const byId = {};
+    myPlaylists.forEach(p => { if (p && p.plId) byId[p.plId] = p; });
+    let updated = 0;
+    for (const post of posts) {
+      const pd = post.playlist_data;
+      if (!pd || !pd.plId) continue;            // 연결 ID 없는 옛 글은 건너뜀
+      const latest = byId[pd.plId];
+      if (!latest) continue;                     // 내 기기에 그 플리가 없음
+      const newData = {
+        plId: pd.plId,
+        name: String(latest.name || pd.name || "공유 플리").slice(0, 30),
+        tracks: (latest.tracks || []).slice(0, 50).map(t => ({ id: String(t.id).slice(0,20), name: String(t.name||"곡").slice(0,40), emoji: "🎵" })),
+      };
+      // 변경된 경우에만 업데이트
+      if (JSON.stringify(newData) !== JSON.stringify(pd)) {
+        await supabase.from("questions").update({ playlist_data: newData }).eq("id", post.id);
+        updated++;
+      }
+    }
+    res.json({ updated });
+  } catch (e) { console.error(e); res.status(500).json({ error: "동기화 실패" }); }
+});
+
 app.delete("/api/questions/:id", auth, async (req, res) => {
   try {
     const qid = Number(req.params.id);

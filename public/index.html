@@ -978,7 +978,13 @@
     <!-- 패치노트 -->
     <div id="guide-patch" class="guide-panel hidden">
       <div class="patch-item">
-        <div class="patch-ver">v3.0 <span class="patch-tag new">최신</span></div>
+        <div class="patch-ver">v3.1 <span class="patch-tag new">최신</span></div>
+        <ul>
+          <li><b>플리 자동 업데이트</b> 🔄 — 공유한 플레이리스트에 곡을 추가하거나 빼면, 게시판 글도 자동으로 최신 상태로 바뀌어요. 다시 안 올려도 돼요!</li>
+        </ul>
+      </div>
+      <div class="patch-item">
+        <div class="patch-ver">v3.0</div>
         <ul>
           <li><b>게시판 개편</b> 🎉 — 질문방이 여러 게시판으로 나뉘어요!</li>
           <li>📢 공지사항 · ❓ 질문방 · 📚 공부 공유 · 🎵 플리 공유</li>
@@ -1265,6 +1271,7 @@ function enterApp(){
   connectSocket();cleanupStaleAttend();
   renderBoardTabs();switchBoard("question");
   $("musicFab").classList.remove("hidden");
+  setTimeout(syncSharedPlaylists, 1500);  // 로그인 후 공유 플리 동기화
 }
 // 세션 저장/복원 (새로고침해도 로그인 유지)
 function saveSession(){
@@ -1298,7 +1305,7 @@ window.addEventListener("load",()=>{restoreSession();});
 
 // ===== password =====
 // ===== 안내(사용법/패치노트) =====
-const APP_VERSION="v3.0";
+const APP_VERSION="v3.1";
 // ===== 다크/라이트 모드 =====
 function applyTheme(dark){
   document.body.classList.toggle("dark", dark);
@@ -1438,8 +1445,31 @@ function renameTrack(plIdx,i){
 // ===== 플레이리스트 (localStorage) =====
 // playlists = [{name, tracks:[{id,name,emoji}]}]
 let playlists=[], curPlIdx=-1;
-function loadPlaylists(){ try{ playlists=JSON.parse(localStorage.getItem("camstudy_playlists")||"[]"); }catch(e){ playlists=[]; } }
-function savePlaylists(){ try{ localStorage.setItem("camstudy_playlists",JSON.stringify(playlists)); }catch(e){} }
+function genPlId(){ return "pl_"+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function loadPlaylists(){
+  try{ playlists=JSON.parse(localStorage.getItem("camstudy_playlists")||"[]"); }catch(e){ playlists=[]; }
+  // 기존 플리에 ID 없으면 부여 (구버전 호환)
+  let changed=false;
+  playlists.forEach(p=>{ if(!p.plId){ p.plId=genPlId(); changed=true; } });
+  if(changed){ try{ localStorage.setItem("camstudy_playlists",JSON.stringify(playlists)); }catch(e){} }
+}
+function savePlaylists(){
+  try{ localStorage.setItem("camstudy_playlists",JSON.stringify(playlists)); }catch(e){}
+  syncSharedPlaylists();  // 공유한 플리 글 자동 갱신
+}
+// 내 플리가 바뀌면, 내가 공유한 플리 글을 서버에서 자동 업데이트
+let _syncTimer=null;
+function syncSharedPlaylists(){
+  if(!token) return;
+  clearTimeout(_syncTimer);
+  _syncTimer=setTimeout(()=>{
+    api("/api/playlists/sync",{method:"POST",body:JSON.stringify({
+      playlists: playlists.map(p=>({plId:p.plId, name:p.name, tracks:p.tracks}))
+    })}).then(r=>{
+      if(r && r.updated>0){ toast("공유한 플레이리스트가 자동으로 업데이트됐어요."); }
+    }).catch(()=>{});
+  }, 800);
+}
 function renderPlaylists(){
   const host=$("plList");
   if(!playlists.length){
@@ -1457,7 +1487,7 @@ function renderPlaylists(){
 function createPlaylist(){
   const name=$("newPlName").value.trim();
   if(!name){ toast("플레이리스트 이름을 입력하세요."); return; }
-  playlists.push({name, tracks:[]});
+  playlists.push({plId:genPlId(), name, tracks:[]});
   savePlaylists(); $("newPlName").value=""; renderPlaylists();
   toast("플레이리스트를 만들었어요!");
 }
@@ -2409,7 +2439,7 @@ function importSharedPlaylist(){
   // 이름 중복 방지
   let finalName=name, n=2;
   while(playlists.some(p=>p.name===finalName)){ finalName=name+" ("+n+")"; n++; }
-  playlists.push({name:finalName, tracks:_sharedPlaylist.tracks.map(t=>({id:t.id,name:t.name,emoji:"🎵"}))});
+  playlists.push({plId:genPlId(), name:finalName, tracks:_sharedPlaylist.tracks.map(t=>({id:t.id,name:t.name,emoji:"🎵"}))});
   savePlaylists();
   toast(`'${finalName}' 플레이리스트를 가져왔어요! 음악에서 확인하세요.`);
 }
